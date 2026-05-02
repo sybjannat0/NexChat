@@ -1,0 +1,2128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NexChat — Secure P2P Messenger</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="NexChat">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NexChat">
+    <meta name="description" content="Secure peer-to-peer messenger with end-to-end encryption, photo compression, and real-time sync. No servers, pure privacy.">
+    <meta name="theme-color" content="#090d16">
+    <meta name="msapplication-TileColor" content="#6366f1">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="NexChat — Secure P2P Messenger">
+    <meta property="og:description" content="End-to-end encrypted peer-to-peer messaging. No servers, pure privacy.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/icons/icon-512.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="/logo.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Core Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --accent: #d946ef;
+            --glass-bg: rgba(15, 23, 42, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --bg-grad: linear-gradient(145deg, #090d16 0%, #111827 40%, #080c14 100%);
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-grad);
+            color: #f1f5f9;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            margin: 0;
+        }
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
+        }
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(8px);
+            transition: all 0.25s ease;
+        }
+        .glass-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+        .bubble-sent {
+            background: linear-gradient(135deg, #4f46e5 0%, #a21caf 100%);
+            box-shadow: 0 6px 20px rgba(162, 28, 175, 0.3);
+        }
+        .bubble-received {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        .theme-aurora {
+            --primary: #14b8a6;
+            --accent: #3b82f6;
+            --bg-grad: linear-gradient(145deg, #05141c 0%, #022c22 50%, #03131a 100%);
+        }
+        .theme-sunset {
+            --primary: #f43f5e;
+            --accent: #f97316;
+            --bg-grad: linear-gradient(145deg, #180914 0%, #31131c 50%, #150811 100%);
+        }
+        .theme-midnight {
+            --primary: #6366f1;
+            --accent: #a21caf;
+            --bg-grad: linear-gradient(145deg, #040814 0%, #0e172c 50%, #030814 100%);
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: scale(0.96) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-slide { animation: slideIn 0.3s ease-out forwards; }
+        /* Mobile scroll fix */
+        .scroll-messages {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            touch-action: pan-y;
+        }
+        /* Push messages naturally to bottom when below max-height */
+        #hub-messages > .message-item:first-of-type {
+            margin-top: auto;
+        }
+        
+        /* Protection Layer: No selection, screenshot deterrents */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        @media print {
+            body { display: none !important; }
+        }
+
+        /* Screen blur on blur/inactive state (prevents snipping tool captures) */
+        .secure-blur {
+            filter: blur(20px) !important;
+            pointer-events: none !important;
+        }
+        
+        /* Thin Sharp Glass Photo Border */
+        .crisp-glass-photo {
+            border: 0.5px solid rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
+        
+        /* Message action buttons hover support */
+        .message-item:hover .message-actions {
+            opacity: 1 !important;
+        }
+
+        /* ===== SKELETON LOADING ===== */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        .skeleton-text { height: 12px; margin: 8px 0; }
+        .skeleton-title { height: 16px; width: 60%; margin-bottom: 8px; }
+        .skeleton-avatar { width: 48px; height: 48px; border-radius: 12px; }
+        .skeleton-bubble { height: 60px; width: 200px; border-radius: 16px; }
+        
+        /* ===== RIPPLE EFFECT ===== */
+        .ripple-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-effect 0.6s linear;
+            background: rgba(255, 255, 255, 0.15);
+            pointer-events: none;
+        }
+        
+        @keyframes ripple-effect {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        /* ===== FLOATING ACTION BUTTONS ===== */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 40;
+        }
+        
+        /* ===== PULSE INDICATOR ===== */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { opacity: 0.4; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+        
+        .pulse-indicator::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: inherit;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+        
+        /* ===== NOTCH SAFE AREA ===== */
+        .safe-top { padding-top: env(safe-area-inset-top); }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* ===== MICRO INTERACTIONS ===== */
+        .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .hover-lift:hover { transform: translateY(-2px); }
+        
+        .press-shrink { transition: transform 0.1s ease; }
+        .press-shrink:active { transform: scale(0.96); }
+        
+        /* ===== TOOLTIP ===== */
+        [data-tip] {
+            position: relative;
+        }
+        [data-tip]::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            padding: 6px 10px;
+            background: #1e1e2e;
+            color: #fff;
+            font-size: 11px;
+            white-space: nowrap;
+            border-radius: 6px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 100;
+        }
+        [data-tip]:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        @supports (height: 100dvh) {
+            .h-dvh { height: 100dvh; }
+        }
+    </style>
+</head>
+<body id="app-body" class="theme-midnight flex items-center justify-center p-0 sm:p-2 md:p-3">
+
+    <!-- Toast Banner -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- PROFILE CREATION / LOGIN & SIGNUP OVERLAY -->
+    <div id="signup-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-[#050811]/95 backdrop-blur-xl p-4 select-none">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-6 sm:p-8 flex flex-col items-center animate-slide border-indigo-500/20">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-fuchsia-600 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg mb-4 shadow-indigo-500/30">
+                <i class="fa-solid fa-feather-pointed"></i>
+            </div>
+            
+            <div class="flex border-b border-white/5 w-full mb-6 select-none">
+                <button onclick="switchAuthMode('login')" id="auth-tab-login" class="flex-1 text-center py-2 text-sm font-bold border-b-2 border-indigo-500 text-indigo-400 cursor-pointer transition">Log In</button>
+                <button onclick="switchAuthMode('signup')" id="auth-tab-signup" class="flex-1 text-center py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-indigo-300 cursor-pointer transition">Sign Up</button>
+            </div>
+
+            <!-- Email & Password fields (Both modes) -->
+            <div class="w-full flex flex-col gap-3.5 mb-2">
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-1">Email Address</label>
+                    <input id="auth-email" type="email" placeholder="name@domain.com" 
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500/50 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-1">Password</label>
+                    <input id="auth-password" type="password" placeholder="••••••••" 
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500/50 outline-none transition-all">
+                </div>
+            </div>
+
+            <!-- Profile Info (Signup only) -->
+            <div id="auth-signup-fields" class="hidden w-full flex-col gap-3.5">
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-1">Display Name</label>
+                    <input id="signup-name" type="text" placeholder="e.g. Alex Mercer" 
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-indigo-500/50 outline-none transition-all">
+                </div>
+
+                <!-- Custom Avatar Upload & Picker -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2">Select Profile Picture</label>
+                    <div class="flex flex-wrap gap-3 justify-center mb-3">
+                        <button onclick="setAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80')" class="avatar-option w-12 h-12 rounded-xl object-cover ring-2 ring-indigo-500/60 p-0.5 cursor-pointer hover:scale-105 transition duration-200">
+                            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" class="w-full h-full rounded-lg object-cover">
+                        </button>
+                        <button onclick="setAvatar('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80')" class="avatar-option w-12 h-12 rounded-xl object-cover hover:scale-105 transition duration-200 p-0.5 cursor-pointer">
+                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" class="w-full h-full rounded-lg object-cover">
+                        </button>
+                        <button onclick="setAvatar('https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80')" class="avatar-option w-12 h-12 rounded-xl object-cover hover:scale-105 transition duration-200 p-0.5 cursor-pointer">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" class="w-full h-full rounded-lg object-cover">
+                        </button>
+                        <button id="custom-avatar-btn" onclick="triggerAvatarUpload()" class="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center text-slate-400 hover:text-white cursor-pointer hover:bg-white/10 transition">
+                            <i class="fa-solid fa-camera text-xs"></i>
+                            <span class="text-[8px] mt-1 font-bold">Custom</span>
+                        </button>
+                        <input type="file" id="avatar-file-input" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit trigger -->
+            <button id="auth-submit-btn" onclick="processAuth()" class="w-full py-3.5 mt-4 bg-gradient-to-r from-indigo-500 to-fuchsia-600 hover:from-indigo-400 hover:to-fuchsia-500 rounded-xl text-white font-bold text-sm tracking-wide shadow-lg shadow-indigo-500/20 cursor-pointer transition-all active:scale-98 flex justify-center items-center gap-2">
+                Log In Securely
+            </button>
+            <div id="auth-feedback" class="hidden w-full mt-3 text-xs leading-relaxed rounded-xl border px-3 py-2"></div>
+        </div>
+    </div>
+
+    <!-- MAIN INTERFACE CORE -->
+    <div id="main-app" class="flex w-full max-w-7xl h-[95vh] h-[95dvh] max-h-[95vh] max-h-[95dvh] rounded-2xl overflow-hidden glass-panel border-white/5 z-20">
+
+        <!-- ========== LEFT WORKSPACE: Directory, Chats & Group Setup ========== -->
+        <aside id="sidebar" class="w-full sm:w-80 md:w-96 flex flex-col border-r border-white/5 flex-shrink-0 transition-all z-30 select-none bg-[#090d16]/30 min-h-0">
+            <!-- App Header Identity -->
+            <div class="p-4 sm:p-5 flex items-center justify-between border-b border-white/5">
+                <div class="flex items-center gap-3">
+                    <!-- Modern SVG Logo -->
+                    <div id="my-avatar-view" class="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-indigo-500/40 flex items-center justify-center" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);">
+                        <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                            <path d="M7 9h10v2H7zm0-3h10v2H7z" opacity="0.7"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 id="my-profile-name" class="text-sm font-bold text-white leading-tight">Anonymous</h1>
+                        <p id="conn-status-label" class="text-[10px] text-slate-400 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span> Supabase Syncing...
+                        </p>
+                    </div>
+                </div>
+                <!-- Mini quick actions -->
+                <div class="flex gap-1.5 items-center">
+                    <!-- E2E Encryption Toggle -->
+                    <button onclick="toggleE2E()" id="e2e-btn" title="End-to-End Encryption" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20">
+                        <i class="fa-solid fa-shield-halved text-xs"></i>
+                        <span id="e2e-label">E2E ON</span>
+                    </button>
+                    <button onclick="toggleThemeMenu()" class="p-2 glass-btn rounded-xl hover:text-indigo-400 text-slate-400 transition cursor-pointer text-xs" title="Themes">
+                        <i class="fa-solid fa-palette"></i>
+                    </button>
+                    <button onclick="signOut()" class="p-2 glass-btn rounded-xl hover:text-red-400 text-slate-400 transition cursor-pointer text-xs" title="Sign Out">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Persistent ID and link details -->
+            <div class="px-4 py-3 bg-indigo-500/5 border-b border-white/5">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Permanent Peer ID</span>
+                    <span class="text-[10px] bg-emerald-500/10 text-emerald-300 font-medium px-2 py-0.5 rounded border border-emerald-500/30">Supabase Connected</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <code id="my-permanent-id" class="text-xs font-mono text-indigo-300 truncate bg-slate-950/40 px-2 py-1 rounded border border-white/5 select-all flex-1">Initializing...</code>
+                    <button onclick="copyMyId()" class="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition cursor-pointer" title="Copy ID">
+                        <i class="fa-solid fa-copy text-xs"></i>
+                    </button>
+                    <button onclick="shareMyId()" class="p-1.5 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition cursor-pointer" title="Share link">
+                        <i class="fa-solid fa-share-nodes text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Connect by Peer ID directly -->
+            <div class="px-4 py-3 flex gap-2 border-b border-white/5 bg-[#080d16]/20">
+                <input id="connect-id-input" type="text" placeholder="Friend's Peer ID..." 
+                    class="flex-1 bg-white/5 border border-white/5 focus:border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none transition-all">
+                <button onclick="connectToFriend()" class="glass-btn px-3 py-2.5 rounded-xl font-bold text-xs text-white cursor-pointer whitespace-nowrap flex items-center gap-1">
+                    <i class="fa-solid fa-plug text-indigo-400"></i> Connect
+                </button>
+            </div>
+
+            <!-- Selection tabs: Conversations & Directory -->
+            <div class="flex border-b border-white/5 select-none bg-slate-950/20">
+                <button onclick="switchSidebarTab('chats')" id="tab-chats" class="flex-1 text-center py-2.5 text-xs font-bold border-b-2 border-indigo-500 text-indigo-400 transition cursor-pointer">
+                    Active Threads
+                </button>
+                <button onclick="switchSidebarTab('directory')" id="tab-directory" class="flex-1 text-center py-2.5 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-indigo-300 transition cursor-pointer">
+                    Directory
+                </button>
+            </div>
+
+            <!-- Conversation threads / Profile directories list -->
+            <div id="thread-list" class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1 select-none scroll-messages">
+                <!-- Managed via JS dynamically -->
+            </div>
+
+            <!-- Footer creates dynamic groups -->
+            <div class="p-3 bg-slate-950/40 border-t border-white/5 flex gap-2">
+                <button onclick="toggleGroupModal()" class="flex-1 py-2.5 bg-gradient-to-r from-indigo-500/10 to-fuchsia-500/10 hover:from-indigo-500/20 hover:to-fuchsia-500/20 text-indigo-300 font-bold border border-indigo-500/20 text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-group text-xs"></i> Create Multi-Friend Group
+                </button>
+            </div>
+        </aside>
+
+        <!-- ========== RIGHT PANEL: Chat Hub Workspace ========== -->
+        <main id="chat-hub" class="hidden sm:flex flex-1 flex-col relative overflow-hidden select-none bg-[#090e19] min-h-0 h-full">
+            <!-- Empty Placeholder state -->
+            <div id="hub-empty" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-10 bg-[#060912]/95 backdrop-blur-md">
+                <div class="w-20 h-20 bg-gradient-to-br from-indigo-500/20 to-fuchsia-600/20 rounded-3xl border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-3xl mb-5 shadow-xl">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Initialize Thread</h3>
+                <p class="text-slate-400 text-xs max-w-xs leading-relaxed">Engage directly with global profiles on Supabase or create secure local P2P channels.</p>
+                <div class="mt-6 flex flex-wrap justify-center gap-2">
+                    <span class="text-[10px] text-slate-500 bg-white/5 border border-white/5 px-3 py-1.5 rounded-full flex items-center gap-1">
+                        <i class="fa-solid fa-database text-indigo-400"></i> Persistent Supabase Cloud
+                    </span>
+                    <span class="text-[10px] text-slate-500 bg-white/5 border border-white/5 px-3 py-1.5 rounded-full flex items-center gap-1">
+                        <i class="fa-solid fa-shield-halved text-emerald-400"></i> Max 5MB Minified Photos
+                    </span>
+                </div>
+            </div>
+
+            <!-- Header Panel - solid background -->
+            <div id="hub-header" class="hidden items-center justify-between px-5 py-4 bg-[#0a0f1c] border-b border-white/10 z-20 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <button onclick="backToSidebar()" class="sm:hidden text-slate-400 hover:text-white cursor-pointer mr-2">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <!-- Active target details -->
+                    <div class="relative">
+                        <div id="active-avatar-box" class="w-10 h-10 bg-indigo-500/10 text-indigo-300 rounded-xl flex items-center justify-center text-lg font-bold border border-indigo-500/20 overflow-hidden">
+                            ?
+                        </div>
+                        <span id="active-status-dot" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-green-500 rounded-full"></span>
+                    </div>
+                    <div>
+                        <h3 id="active-name" class="text-sm font-bold text-white tracking-wide leading-tight">No active space</h3>
+                        <div class="flex items-center gap-2">
+                            <p id="active-subtitle" class="text-[10px] text-slate-400">Syncing message queue...</p>
+                            <span id="chat-e2e-badge" class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-0.5 select-none">
+                                <i class="fa-solid fa-lock text-[8px]"></i> E2E
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auxiliary Action Buttons -->
+                <div class="flex gap-1">
+                    <button onclick="showToast('Voice mesh requested', 'info')" class="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl cursor-pointer" title="Voice Stream">
+                        <i class="fa-solid fa-phone text-xs"></i>
+                    </button>
+                    <button onclick="showToast('Cloud direct call established', 'info')" class="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl cursor-pointer" title="Video Session">
+                        <i class="fa-solid fa-video text-xs"></i>
+                    </button>
+                    <button onclick="openDeleteModal('thread', null)" class="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-500/5 rounded-xl cursor-pointer" title="Purge Conversation">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Direct Message Scrolling Node - scrolls only when content overflows -->
+            <div id="hub-messages" class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3 select-text relative min-h-0 scroll-messages">
+                <!-- Empty State - shown when no messages -->
+                <div id="conversation-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <div class="w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-fuchsia-600/10 rounded-3xl border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-4xl mb-4 animate-pulse">
+                        <i class="fa-regular fa-paper-plane"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-white mb-1">Start the conversation</h4>
+                    <p class="text-xs text-slate-500 max-w-[200px]">Send your first message below to begin chatting</p>
+                </div>
+                <!-- Messages will be inserted here -->
+            </div>
+
+            <!-- Content Previews -->
+            <div id="attachment-preview" class="hidden px-5 py-3 border-t border-indigo-500/20 bg-[#0a0f1c] flex justify-between items-center animate-slide flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="attach-icon-view" class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p id="attach-name-view" class="text-xs font-semibold text-slate-200 truncate max-w-xs">attachment.jpg</p>
+                        <p id="attach-size-view" class="text-[10px] text-indigo-400">12 KB</p>
+                    </div>
+                </div>
+                <button onclick="clearAttachment()" class="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-red-400 transition cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Input Bar - fully pinned to bottom, solid background -->
+            <div class="px-4 py-3 border-t border-white/10 bg-[#0a0f1c] flex items-end gap-2.5 z-30 mt-auto flex-shrink-0 sticky bottom-0 shadow-[0_-8px_24px_rgba(0,0,0,0.4)]">
+                <!-- Attachment Options modal -->
+                <div class="relative flex">
+                    <button onclick="toggleAttachMenu()" class="p-3 text-slate-400 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition cursor-pointer flex-shrink-0">
+                        <i class="fa-solid fa-paperclip text-lg"></i>
+                    </button>
+                    <div id="attach-menu" class="hidden absolute bottom-14 left-0 bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl p-1.5 flex flex-col gap-0.5 z-40 w-44 animate-slide">
+                        <button onclick="triggerImageUpload()" class="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 rounded-xl text-slate-300 hover:text-indigo-400 text-xs cursor-pointer w-full text-left">
+                            <i class="fa-solid fa-image text-indigo-400 w-5"></i> Pick Photo (Minify)
+                        </button>
+                        <button onclick="triggerDocUpload()" class="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 rounded-xl text-slate-300 hover:text-emerald-400 text-xs cursor-pointer w-full text-left">
+                            <i class="fa-solid fa-file-lines text-emerald-400 w-5"></i> Send Document
+                        </button>
+                    </div>
+                    <!-- Actual hidden input elements -->
+                    <input type="file" id="image-input" accept="image/*" class="hidden" onchange="handleImageFile(event)">
+                    <input type="file" id="doc-input" accept=".pdf,.doc,.docx,.txt,.csv,.zip,.rar" class="hidden" onchange="handleDocFile(event)">
+                </div>
+
+                <!-- Expandable Direct Message input text field -->
+                <div class="flex-1 relative flex items-center">
+                    <textarea id="msg-input" rows="1" placeholder="Enter persistent cloud message..." 
+                        class="w-full bg-white/5 border border-white/5 focus:border-indigo-500/30 rounded-xl py-3.5 pl-4 pr-11 text-xs text-slate-100 outline-none transition-all resize-none leading-relaxed"
+                        onkeydown="handleMsgKeys(event)"></textarea>
+                    
+                    <!-- Emoji Selection Trigger -->
+                    <button onclick="toggleEmojiPicker()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 transition cursor-pointer">
+                        <i class="fa-solid fa-face-smile text-base"></i>
+                    </button>
+
+                    <!-- Popup Emoji floating grid -->
+                    <div id="emoji-picker" class="hidden absolute bottom-14 right-0 bg-slate-900 border border-slate-700 shadow-2xl rounded-xl p-2.5 grid grid-cols-6 gap-1.5 z-40 animate-slide">
+                        <span onclick="appendEmoji('👍')" class="p-1.5 hover:bg-white/10 rounded cursor-pointer text-lg text-center">👍</span>
+                        <span onclick="appendEmoji('❤️')" class="p-1.5 hover:bg-white/10 rounded cursor-pointer text-lg text-center">❤️</span>
+                        <span onclick="appendEmoji('😂')" class="p-1.5 hover:bg-white/10 rounded cursor-pointer text-lg text-center">😂</span>
+                        <span onclick="appendEmoji('🔥')" class="p-1.5 hover:bg-white/10 rounded cursor-pointer text-lg text-center">🔥</span>
+                        <span onclick="appendEmoji('😱')" class="p-1.5 hover:bg-white/10 rounded cursor-pointer text-lg text-center">😱</span>
+                        <span onclick="appendEmoji('🙌')" class="p-1.5 hover:bg-white/10 rounded cursor-pointer text-lg text-center">🙌</span>
+                    </div>
+                </div>
+
+                <!-- Submission Action Trigger -->
+                <button onclick="submitMessage()" class="p-3.5 bg-gradient-to-br from-indigo-500 to-fuchsia-600 hover:opacity-95 rounded-xl text-white shadow-lg cursor-pointer flex-shrink-0 transition active:scale-95 flex items-center justify-center">
+                    <i class="fa-solid fa-paper-plane text-sm"></i>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- IMAGE VIEWER MODAL -->
+    <div id="image-viewer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 select-none animate-slide" onclick="closeImageViewer()">
+        <div class="relative max-w-4xl max-h-[90vh] flex items-center justify-center" onclick="event.stopPropagation()">
+            <button onclick="closeImageViewer()" class="absolute -top-12 right-0 text-white hover:text-indigo-400 text-2xl cursor-pointer p-2 transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <img id="image-viewer-img" src="" draggable="false" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/20 select-text">
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL - Modern & Colorful -->
+    <div id="delete-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-gradient-to-br from-rose-500/20 via-fuchsia-500/20 to-indigo-500/20 backdrop-blur-lg p-4 select-none animate-slide">
+        <div class="glass-panel rounded-3xl w-full max-w-sm p-8 flex flex-col items-center gap-5 relative overflow-hidden">
+            <!-- Decorative gradient orbs -->
+            <div class="absolute -top-20 -left-20 w-40 h-40 bg-rose-500/30 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-fuchsia-500/30 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <!-- Animated icon -->
+            <div class="relative">
+                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-rose-400 to-fuchsia-600 flex items-center justify-center shadow-xl shadow-rose-500/30 animate-pulse">
+                    <i class="fa-solid fa-trash-can text-white text-2xl"></i>
+                </div>
+                <div class="absolute -top-1 -right-1 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-lg">
+                    <i class="fa-solid fa-exclamation text-amber-900 text-xs font-bold"></i>
+                </div>
+            </div>
+            
+            <div class="text-center z-10">
+                <h3 class="text-xl font-bold text-white mb-2">Delete Message?</h3>
+                <p id="delete-modal-text" class="text-sm text-slate-300 leading-relaxed">This action cannot be undone. The message will be permanently removed from this conversation.</p>
+            </div>
+            
+            <div class="flex gap-3 w-full z-10">
+                <button onclick="closeDeleteModal()" class="flex-1 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-300 font-semibold text-sm rounded-xl transition-all cursor-pointer">
+                    Cancel
+                </button>
+                <button onclick="confirmDelete()" class="flex-1 py-3.5 bg-gradient-to-r from-rose-500 via-fuchsia-500 to-rose-500 hover:from-rose-400 hover:via-fuchsia-400 hover:to-rose-400 text-white font-bold text-sm rounded-xl shadow-lg shadow-rose-500/25 transition-all cursor-pointer flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-trash text-xs"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE MULTI-FRIEND GROUP DIALOG -->
+    <div id="group-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 select-none">
+        <div class="glass-panel rounded-2xl w-full max-w-md p-6 flex flex-col gap-4 animate-slide">
+            <div class="flex justify-between items-center border-b border-white/5 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-group text-indigo-400"></i> Add Mesh Group Space
+                </h3>
+                <button onclick="toggleGroupModal()" class="text-slate-400 hover:text-white cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-1.5">Group Title</label>
+                <input id="group-name-input" type="text" placeholder="e.g. Design Hackathon" 
+                    class="w-full bg-white/5 border border-white/10 focus:border-indigo-500/40 rounded-xl px-3.5 py-3 text-sm text-slate-200 outline-none transition-all">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-1.5">Check Direct Users to Include</label>
+                <div id="group-friend-list" class="flex flex-col gap-2 max-h-44 overflow-y-auto bg-slate-950/20 rounded-xl p-2.5 border border-white/5">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+            </div>
+            <button onclick="triggerCreateGroup()" class="py-3 bg-gradient-to-r from-indigo-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm tracking-wide rounded-xl cursor-pointer transition shadow-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus text-xs"></i> Register Group Online
+            </button>
+        </div>
+    </div>
+
+    <!-- THEME SETTINGS POPUP MENU -->
+    <div id="theme-menu" class="hidden fixed top-20 right-6 z-50 bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl p-3 flex flex-col gap-1.5 animate-slide">
+        <button onclick="changeTheme('theme-midnight')" class="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl text-xs text-slate-300 cursor-pointer w-full text-left">
+            <span class="w-3.5 h-3.5 rounded-full bg-indigo-500 border border-indigo-400"></span> Indigo Midnight
+        </button>
+        <button onclick="changeTheme('theme-aurora')" class="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl text-xs text-slate-300 cursor-pointer w-full text-left">
+            <span class="w-3.5 h-3.5 rounded-full bg-teal-500 border border-teal-400"></span> Oceanic Aurora
+        </button>
+        <button onclick="changeTheme('theme-sunset')" class="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl text-xs text-slate-300 cursor-pointer w-full text-left">
+            <span class="w-3.5 h-3.5 rounded-full bg-rose-500 border border-rose-400"></span> Vibrant Sunset
+        </button>
+    </div>
+
+    <!-- ========== JAVASCRIPT CORE CODE INTEGRATIONS ========== -->
+    <script>
+        // Supabase & PeerJS API Configurations
+        const SUPABASE_URL = 'https://jdbzrxpybbxgqnehtffy.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_h3z630VAGnjp7zH49d9hAg_S9VMew3w';
+        const PEERJS_CONFIG = { host: '0.peerjs.com', port: 443, secure: true, debug: 0 };
+
+        // Initialize Global APIs
+        let _supabase = null;
+        let myPeer = null;
+
+        // Base user profile memory state
+        let myProfile = { name: '', avatar: '', permanentPeerId: '' };
+        let friends = {}; // { peerId: { name, avatar, online, messages: [] } }
+        let groups = {}; // { groupId: { name, hostId, members: [], messages: [] } }
+        let activeTab = 'chats'; // 'chats' or 'directory'
+        let activeThreadId = null;
+        let currentAttachment = null;
+        let pollingInterval = null;
+
+        // Window Startup Integration
+        window.onload = async () => {
+            // Setup Supabase first
+            _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            loadUserProfile();
+
+            // Setup real-time dynamic sizing for textarea inputs
+            const msgInput = document.getElementById('msg-input');
+            msgInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+
+            // Refresh message sync continuously
+            pollingInterval = setInterval(() => {
+                syncDataQueue();
+            }, 5500);
+            
+            // Protection Layer Implementation
+            // Prevent Right Clicks (Blocks downloading)
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            
+            // Prevent Drag and Drop actions
+            document.addEventListener('dragstart', e => e.preventDefault());
+            
+            // Blur out screen content when focus leaves window (screenshot/snipping deterrent)
+            const mainAppShell = document.getElementById('main-app');
+            window.addEventListener('blur', () => {
+                if(mainAppShell) mainAppShell.classList.add('secure-blur');
+            });
+            window.addEventListener('focus', () => {
+                if(mainAppShell) mainAppShell.classList.remove('secure-blur');
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if(mainAppShell) mainAppShell.classList.add('secure-blur');
+                } else {
+                    if(mainAppShell) mainAppShell.classList.remove('secure-blur');
+                }
+            });
+
+            // Prevent save/print commands
+            document.addEventListener('keydown', e => {
+                // Blocks Ctrl+S, Ctrl+P, Ctrl+U, Ctrl+Shift+I (F12)
+                if (e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u' || e.key === 'S' || e.key === 'P' || e.key === 'U')) {
+                    e.preventDefault();
+                    showToast('Action restricted for security.', 'error');
+                }
+                // Check for PrintScreen
+                if (e.key === 'PrintScreen' || e.keyCode === 44) {
+                    e.preventDefault();
+                    if(mainAppShell) mainAppShell.classList.add('secure-blur');
+                    showToast('Screenshots discouraged.', 'error');
+                    notifyScreenshotTaken();
+                }
+            });
+        };
+
+        // ────────── Profile Registration & Supabase State ──────────
+        async function loadUserProfile() {
+            try {
+                const stored = localStorage.getItem('nexchat_user_profile');
+                if (stored) {
+                    myProfile = JSON.parse(stored);
+                    document.getElementById('signup-overlay').classList.add('hidden');
+                    applyProfileToUI();
+                    initPeerJS();
+                    syncDataQueue();
+                } else {
+                    document.getElementById('signup-overlay').classList.remove('hidden');
+                    switchAuthMode('login');
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById('signup-overlay').classList.remove('hidden');
+            }
+        }
+
+        let currentAuthMode = 'login';
+
+        function switchAuthMode(mode) {
+            currentAuthMode = mode;
+            const tabLogin = document.getElementById('auth-tab-login');
+            const tabSignup = document.getElementById('auth-tab-signup');
+            const signupFields = document.getElementById('auth-signup-fields');
+            const submitBtn = document.getElementById('auth-submit-btn');
+            document.getElementById('auth-feedback').classList.add('hidden');
+
+            if (mode === 'signup') {
+                tabSignup.className = "flex-1 text-center py-2 text-sm font-bold border-b-2 border-indigo-500 text-indigo-400 cursor-pointer transition";
+                tabLogin.className = "flex-1 text-center py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-indigo-300 cursor-pointer transition";
+                signupFields.classList.remove('hidden');
+                signupFields.classList.add('flex');
+                submitBtn.innerText = "Register Account";
+            } else {
+                tabLogin.className = "flex-1 text-center py-2 text-sm font-bold border-b-2 border-indigo-500 text-indigo-400 cursor-pointer transition";
+                tabSignup.className = "flex-1 text-center py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-indigo-300 cursor-pointer transition";
+                signupFields.classList.add('hidden');
+                signupFields.classList.remove('flex');
+                submitBtn.innerText = "Log In Securely";
+            }
+        }
+
+        function setAvatar(url) {
+            myProfile.avatar = url;
+            document.querySelectorAll('.avatar-option').forEach(el => {
+                el.classList.remove('ring-2', 'ring-indigo-500/60');
+            });
+            if (event && event.currentTarget && event.currentTarget.classList) {
+                event.currentTarget.classList.add('ring-2', 'ring-indigo-500/60');
+            }
+        }
+
+        function triggerAvatarUpload() {
+            document.getElementById('avatar-file-input').click();
+        }
+
+        function handleAvatarUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                myProfile.avatar = ev.target.result;
+                const btn = document.getElementById('custom-avatar-btn');
+                btn.innerHTML = `<img src="${ev.target.result}" class="w-full h-full rounded-lg object-cover">`;
+                document.querySelectorAll('.avatar-option').forEach(el => {
+                    el.classList.remove('ring-2', 'ring-indigo-500/60');
+                });
+                btn.classList.add('ring-2', 'ring-indigo-500/60');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setAuthFeedback(message, type = 'info') {
+            const box = document.getElementById('auth-feedback');
+            box.classList.remove('hidden', 'border-rose-500/30', 'bg-rose-950/30', 'text-rose-200', 'border-indigo-500/30', 'bg-indigo-950/30', 'text-indigo-200');
+            if (type === 'error') {
+                box.classList.add('border-rose-500/30', 'bg-rose-950/30', 'text-rose-200');
+            } else {
+                box.classList.add('border-indigo-500/30', 'bg-indigo-950/30', 'text-indigo-200');
+            }
+            box.textContent = message;
+        }
+
+        function setAuthLoading(isLoading) {
+            const btn = document.getElementById('auth-submit-btn');
+            btn.disabled = isLoading;
+            btn.classList.toggle('opacity-60', isLoading);
+            btn.classList.toggle('cursor-not-allowed', isLoading);
+            btn.textContent = isLoading ? 'Processing...' : (currentAuthMode === 'signup' ? 'Register Account' : 'Log In Securely');
+        }
+
+        async function hashPassword(email, password) {
+            const value = `${email}:${password}:nexchat-v1`;
+            if (window.crypto && window.crypto.subtle) {
+                const data = new TextEncoder().encode(value);
+                const digest = await crypto.subtle.digest('SHA-256', data);
+                return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            return btoa(unescape(encodeURIComponent(value)));
+        }
+
+        function completeProfileSession(profile) {
+            myProfile.permanentPeerId = profile.peer_id;
+            myProfile.name = profile.name;
+            myProfile.avatar = profile.avatar_url || '';
+            localStorage.setItem('nexchat_user_profile', JSON.stringify(myProfile));
+            document.getElementById('signup-overlay').classList.add('hidden');
+            applyProfileToUI();
+            initPeerJS();
+            syncDataQueue();
+        }
+
+        async function processAuth() {
+            if (!_supabase) {
+                setAuthFeedback('Supabase is still loading. Try again in a moment.', 'error');
+                return;
+            }
+
+            const email = document.getElementById('auth-email').value.trim().toLowerCase();
+            const password = document.getElementById('auth-password').value.trim();
+            const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+            if (!validEmail) {
+                setAuthFeedback('Enter a valid email address.', 'error');
+                return;
+            }
+            if (password.length < 6) {
+                setAuthFeedback('Password must be at least 6 characters.', 'error');
+                return;
+            }
+
+            setAuthLoading(true);
+            setAuthFeedback(currentAuthMode === 'signup' ? 'Creating account...' : 'Checking login...', 'info');
+
+            try {
+                if (currentAuthMode === 'signup') {
+                    const name = document.getElementById('signup-name').value.trim();
+                    if (!name) {
+                        setAuthFeedback('Display name is required for signup.', 'error');
+                        setAuthLoading(false);
+                        return;
+                    }
+
+                    const { data: existing, error: existingErr } = await _supabase
+                        .from('profiles')
+                        .select('peer_id')
+                        .eq('peer_id', email)
+                        .maybeSingle();
+                    if (existingErr) throw existingErr;
+                    if (existing) {
+                        setAuthFeedback('This email is already registered. Switch to Log In.', 'error');
+                        return;
+                    }
+
+                    const passwordHash = await hashPassword(email, password);
+                    const { data, error } = await _supabase.from('profiles').insert([{
+                        peer_id: email,
+                        name,
+                        avatar_url: myProfile.avatar,
+                        password_hash: passwordHash
+                    }]).select().single();
+
+                    if (error) throw error;
+                    completeProfileSession(data);
+                    showToast('Profile created. No email confirmation needed.', 'info');
+                } else {
+                    const { data, error } = await _supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('peer_id', email)
+                        .maybeSingle();
+
+                    if (error) throw error;
+                    if (!data) {
+                        setAuthFeedback('No profile found for this email. Please sign up first.', 'error');
+                        return;
+                    }
+
+                    const passwordHash = await hashPassword(email, password);
+                    if (data.password_hash !== passwordHash) {
+                        setAuthFeedback('Wrong password. Please try again.', 'error');
+                        return;
+                    }
+
+                    completeProfileSession(data);
+                    showToast('Logged in successfully.', 'info');
+                }
+            } catch (err) {
+                console.error('Auth error:', err);
+                setAuthFeedback(err.message || 'Authentication failed. Check Supabase Auth settings.', 'error');
+            } finally {
+                setAuthLoading(false);
+            }
+        }
+
+        async function signOut() {
+            try {
+                localStorage.removeItem('nexchat_user_profile');
+                showToast('Signed out successfully', 'info');
+                setTimeout(() => location.reload(), 500);
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function applyProfileToUI() {
+            document.getElementById('my-profile-name').innerText = myProfile.name;
+            document.getElementById('my-permanent-id').innerText = myProfile.permanentPeerId;
+            const view = document.getElementById('my-avatar-view');
+            if (myProfile.avatar) {
+                view.innerHTML = `<img src="${myProfile.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                view.innerHTML = `<i class="fa-solid fa-user"></i>`;
+            }
+        }
+
+        function toggleSignupOverlay() {
+            document.getElementById('signup-overlay').classList.toggle('hidden');
+        }
+
+        // ────────── Advanced Direct PeerJS Handshaking ──────────
+        function initPeerJS() {
+            if (myPeer) {
+                try { myPeer.destroy(); } catch(e) {}
+            }
+            myPeer = new Peer(myProfile.permanentPeerId, PEERJS_CONFIG);
+
+            myPeer.on('open', (id) => {
+                updateConnStatus('online', 'Connected');
+                // Link hash parsing
+                const hashId = window.location.hash.slice(1);
+                if (hashId && hashId !== id) {
+                    document.getElementById('connect-id-input').value = hashId;
+                    connectToFriend();
+                }
+            });
+
+            myPeer.on('connection', (conn) => {
+                setupDirectLink(conn, conn.peer);
+            });
+
+            myPeer.on('disconnected', () => {
+                updateConnStatus('offline', 'Syncing Messages...');
+                setTimeout(() => { if (myPeer && myPeer.disconnected) myPeer.reconnect(); }, 4000);
+            });
+
+            myPeer.on('error', (err) => {
+                console.error(err);
+                if (err.type === 'unavailable-id') {
+                    updateConnStatus('offline', 'Peer ID already active elsewhere');
+                    showToast('This email ID is already active in another tab/device.', 'error');
+                }
+            });
+        }
+
+        function updateConnStatus(status, text) {
+            const label = document.getElementById('conn-status-label');
+            label.className = 'text-[10px] text-slate-400 flex items-center gap-1';
+            if (status === 'online') {
+                label.innerHTML = `<span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> ${text}`;
+            } else if (status === 'offline') {
+                label.innerHTML = `<span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span> ${text}`;
+            } else {
+                label.innerHTML = `<span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> ${text}`;
+            }
+        }
+
+        function setupDirectLink(conn, peerId) {
+            conn.on('open', () => {
+                if (!friends[peerId]) {
+                    friends[peerId] = {
+                        name: `Direct Mesh ${peerId.slice(4, 9)}`,
+                        avatar: '',
+                        online: true,
+                        messages: []
+                    };
+                    conn.send({ type: 'handshake', profile: myProfile });
+                } else {
+                    friends[peerId].online = true;
+                }
+                renderThreadList();
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'handshake') {
+                    if (friends[peerId]) {
+                        friends[peerId].name = data.profile.name;
+                        friends[peerId].avatar = data.profile.avatar;
+                        renderThreadList();
+                    }
+                }
+            });
+        }
+
+        // ────────── Connections and Profiles Handlers ──────────
+        async function connectToFriend() {
+            const inp = document.getElementById('connect-id-input');
+            const tid = inp.value.trim();
+
+            if (!tid) {
+                showToast('Friend Peer ID signature required', 'error');
+                return;
+            }
+            if (tid === myProfile.permanentPeerId) {
+                showToast('You cannot connect to yourself', 'error');
+                return;
+            }
+            if (friends[tid]) {
+                showToast('Thread already active', 'info');
+                openThread(tid);
+                return;
+            }
+
+            inp.value = '';
+            showToast('Loading profile from Supabase directory...', 'info');
+
+            // Find identity on Supabase
+            try {
+                const { data } = await _supabase.from('profiles').select('*').eq('peer_id', tid).single();
+                if (data) {
+                    friends[tid] = {
+                        name: data.name,
+                        avatar: data.avatar_url,
+                        online: true,
+                        messages: []
+                    };
+                    showToast(`Secured connection to ${data.name}`, 'info');
+                } else {
+                    friends[tid] = {
+                        name: `Dynamic Mesh ${tid.slice(4, 9)}`,
+                        avatar: '',
+                        online: true,
+                        messages: []
+                    };
+                }
+
+                // Register handshake connection directly via PeerJS for direct sync fallback
+                try {
+                    const conn = myPeer.connect(tid, { reliable: true });
+                    setupDirectLink(conn, tid);
+                } catch(e) {
+                    console.error(e);
+                }
+
+                renderThreadList();
+                openThread(tid);
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        // ────────── Global Data Sync Queue Pipeline (Poller/Broadcaster) ──────────
+        // Tracks previous message counts to avoid unnecessary DOM re-renders (prevents blinking)
+        let _lastMessageCounts = {};
+        async function syncDataQueue() {
+            if (!_supabase) return;
+
+            const gIds = Object.keys(groups);
+            let anyChange = false;
+
+            try {
+                // Fetch direct messages where I am sender or recipient
+                const { data: directMsgs } = await _supabase
+                    .from('messages')
+                    .select('*')
+                    .or(`sender_id.eq.${myProfile.permanentPeerId},recipient_id.eq.${myProfile.permanentPeerId}`);
+
+                if (directMsgs && directMsgs.length > 0) {
+                    directMsgs.forEach(m => {
+                        const targetId = m.sender_id === myProfile.permanentPeerId ? m.recipient_id : m.sender_id;
+                        if (targetId) {
+                            if (!friends[targetId]) {
+                                friends[targetId] = {
+                                    name: m.sender_id === myProfile.permanentPeerId ? 'Friend' : m.sender_name,
+                                    avatar: '',
+                                    online: true,
+                                    messages: []
+                                };
+                                anyChange = true;
+                            }
+                            // Insert only if new or status updated
+                            const existingMsg = friends[targetId].messages.find(ex => ex.id === m.id);
+                            if (!existingMsg) {
+                                friends[targetId].messages.push({
+                                    id: m.id,
+                                    senderId: m.sender_id,
+                                    senderName: m.sender_name,
+                                    text: m.text,
+                                    fileData: m.file_data,
+                                    fileName: m.file_name,
+                                    fileSize: m.file_size,
+                                    type: m.type,
+                                    status: m.status || 'delivered',
+                                    timestamp: m.timestamp
+                                });
+                                anyChange = true;
+                            } else if (existingMsg.status !== m.status) {
+                                existingMsg.status = m.status;
+                                anyChange = true;
+                            }
+                        }
+                    });
+                }
+
+                // Fetch profiles for all connected friends to ensure name and avatar show correctly
+                const friendEmails = Object.keys(friends);
+                if (friendEmails.length > 0) {
+                    const { data: friendProfiles } = await _supabase
+                        .from('profiles')
+                        .select('peer_id, name, avatar_url')
+                        .in('peer_id', friendEmails);
+                        
+                    if (friendProfiles && friendProfiles.length > 0) {
+                        friendProfiles.forEach(fp => {
+                            if (friends[fp.peer_id]) {
+                                // Update name or avatar if not loaded or different
+                                if (!friends[fp.peer_id].avatar && fp.avatar_url) {
+                                    friends[fp.peer_id].avatar = fp.avatar_url;
+                                    anyChange = true;
+                                }
+                                if (friends[fp.peer_id].name === 'Friend' || friends[fp.peer_id].name.startsWith('Direct Mesh')) {
+                                    friends[fp.peer_id].name = fp.name;
+                                    anyChange = true;
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Fetch all group messages
+                if (gIds.length > 0) {
+                    const { data: grpMsgs } = await _supabase
+                        .from('messages')
+                        .select('*')
+                        .in('group_id', gIds);
+
+                    if (grpMsgs && grpMsgs.length > 0) {
+                        grpMsgs.forEach(m => {
+                            const grp = groups[m.group_id];
+                            if (grp) {
+                                const existingMsg = grp.messages.find(ex => ex.id === m.id);
+                                if (!existingMsg) {
+                                    grp.messages.push({
+                                        id: m.id,
+                                        senderId: m.sender_id,
+                                        senderName: m.sender_name,
+                                        text: m.text,
+                                        fileData: m.file_data,
+                                        fileName: m.file_name,
+                                        fileSize: m.file_size,
+                                        type: m.type,
+                                        status: m.status || 'delivered',
+                                        timestamp: m.timestamp
+                                    });
+                                    anyChange = true;
+                                } else if (existingMsg.status !== m.status) {
+                                    existingMsg.status = m.status;
+                                    anyChange = true;
+                                }
+                            }
+                        });
+                    }
+                }
+
+                // Check for new groups that I am a member of
+                const { data: myGrps } = await _supabase
+                    .from('groups')
+                    .select('*')
+                    .contains('members', [myProfile.permanentPeerId]);
+
+                if (myGrps && myGrps.length > 0) {
+                    myGrps.forEach(g => {
+                        if (!groups[g.group_id]) {
+                            groups[g.group_id] = {
+                                name: g.name,
+                                hostId: g.host_id,
+                                members: g.members,
+                                messages: []
+                            };
+                            anyChange = true;
+                            showToast(`Linked up with group: ${g.name}`, 'info');
+                        }
+                    });
+                }
+
+                // Only re-render if something actually changed — prevents blinking
+                if (anyChange) {
+                    // Compute a quick hash incorporating message lengths AND last status changes 
+                    // to accurately trigger UI re-renders without unneccessary full-dom wipes
+                    const currentCounts = {};
+                    Object.keys(friends).forEach(k => { 
+                        const msgs = friends[k].messages;
+                        currentCounts[k] = `${msgs.length}_${msgs.length ? msgs[msgs.length-1].status : '0'}`; 
+                    });
+                    Object.keys(groups).forEach(k => { 
+                        const msgs = groups[k].messages;
+                        currentCounts[k] = `${msgs.length}_${msgs.length ? msgs[msgs.length-1].status : '0'}`; 
+                    });
+                    const newHash = JSON.stringify(currentCounts);
+
+                    if (newHash !== _lastMessageCounts) {
+                        _lastMessageCounts = newHash;
+                        renderThreadList();
+                    }
+
+                    if (activeThreadId) {
+                        renderMessages();
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // ────────── Messaging Hub Logic Core ──────────
+        async function submitMessage() {
+            const inp = document.getElementById('msg-input');
+            const text = inp.value.trim();
+
+            if (!activeThreadId) {
+                showToast('Please select an active space first', 'error');
+                return;
+            }
+            if (!text && !currentAttachment) return;
+
+            const isGroup = !!groups[activeThreadId];
+            const msgData = {
+                sender_id: myProfile.permanentPeerId,
+                sender_name: myProfile.name,
+                text: text,
+                type: 'text',
+                status: 'sent',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            if (currentAttachment) {
+                msgData.type = currentAttachment.type;
+                msgData.file_data = currentAttachment.data;
+                msgData.file_name = currentAttachment.name;
+                msgData.file_size = currentAttachment.size;
+                clearAttachment();
+            }
+
+            if (isGroup) {
+                msgData.group_id = activeThreadId;
+            } else {
+                msgData.recipient_id = activeThreadId;
+            }
+
+            // Realtime insert directly to Supabase
+            try {
+                const { data, error } = await _supabase.from('messages').insert([msgData]).select();
+                if (error) {
+                    showToast('Failed to write to cloud', 'error');
+                    return;
+                }
+                if (data && data.length > 0) {
+                    const saved = data[0];
+                    const localMsg = {
+                        id: saved.id,
+                        senderId: saved.sender_id,
+                        senderName: saved.sender_name,
+                        text: saved.text,
+                        fileData: saved.file_data,
+                        fileName: saved.file_name,
+                        fileSize: saved.file_size,
+                        type: saved.type,
+                        status: 'sent',
+                        timestamp: saved.timestamp
+                    };
+
+                    if (isGroup) {
+                        groups[activeThreadId].messages.push(localMsg);
+                    } else {
+                        friends[activeThreadId].messages.push(localMsg);
+                    }
+                }
+            } catch(e) {
+                console.error(e);
+            }
+
+            inp.value = '';
+            inp.style.height = 'auto';
+            renderMessages();
+            renderThreadList();
+        }
+
+        function handleMsgKeys(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitMessage();
+            }
+        }
+
+        let _lastScreenshotNoticeAt = 0;
+        async function notifyScreenshotTaken() {
+            if (!activeThreadId || !_supabase || !myProfile.permanentPeerId) return;
+            const nowMs = Date.now();
+            if (nowMs - _lastScreenshotNoticeAt < 5000) return;
+            _lastScreenshotNoticeAt = nowMs;
+
+            const isGroup = !!groups[activeThreadId];
+            const noticeText = `${myProfile.name} took a screenshot.`;
+            const msgData = {
+                sender_id: myProfile.permanentPeerId,
+                sender_name: myProfile.name,
+                text: noticeText,
+                type: 'system',
+                status: 'seen',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            if (isGroup) msgData.group_id = activeThreadId;
+            else msgData.recipient_id = activeThreadId;
+
+            try {
+                const { data, error } = await _supabase.from('messages').insert([msgData]).select();
+                if (error) throw error;
+                const saved = data && data[0];
+                const localMsg = {
+                    id: saved?.id || 'ss_' + nowMs,
+                    senderId: msgData.sender_id,
+                    senderName: msgData.sender_name,
+                    text: noticeText,
+                    type: 'system',
+                    status: 'seen',
+                    timestamp: msgData.timestamp
+                };
+                if (isGroup) groups[activeThreadId].messages.push(localMsg);
+                else friends[activeThreadId].messages.push(localMsg);
+                renderMessages();
+                renderThreadList();
+            } catch (e) {
+                console.error('Screenshot notice failed:', e);
+            }
+        }
+
+        // ────────── Thread Selection Rendering Logic ──────────
+        function openThread(id) {
+            activeThreadId = id;
+
+            if (!id) {
+                document.getElementById('hub-empty').classList.remove('hidden');
+                document.getElementById('hub-header').classList.add('hidden');
+                document.getElementById('hub-messages').innerHTML = '';
+                if (window.innerWidth < 640) {
+                    document.getElementById('sidebar').classList.remove('hidden');
+                    document.getElementById('chat-hub').classList.add('hidden');
+                }
+                return;
+            }
+
+            document.getElementById('hub-empty').classList.add('hidden');
+            document.getElementById('hub-header').classList.remove('hidden');
+            document.getElementById('hub-header').classList.add('flex');
+
+            const isGroup = !!groups[id];
+            const nameEl = document.getElementById('active-name');
+            const subEl = document.getElementById('active-subtitle');
+            const avatarBox = document.getElementById('active-avatar-box');
+            const statusDot = document.getElementById('active-status-dot');
+
+            if (isGroup) {
+                const g = groups[id];
+                nameEl.textContent = g.name;
+                subEl.textContent = `${g.members.length} participating mesh members`;
+                avatarBox.innerHTML = `<i class="fa-solid fa-user-group text-fuchsia-400"></i>`;
+                statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-fuchsia-500 rounded-full animate-pulse';
+            } else {
+                const f = friends[id];
+                nameEl.textContent = f.name;
+                subEl.textContent = f.online ? 'Syncing Queue' : 'Supabase Connected';
+                if (f.avatar) {
+                    avatarBox.innerHTML = `<img src="${f.avatar}" class="w-full h-full object-cover">`;
+                } else {
+                    avatarBox.innerHTML = f.name.charAt(0).toUpperCase();
+                }
+                statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-green-500 rounded-full';
+                enrichFriendProfile(id);
+            }
+
+            renderMessages();
+
+            // Mark all received messages in this thread as "seen"
+            markMessagesAsSeen(id);
+
+            // Always show chat hub when thread is opened (mobile and desktop)
+            const chatHub = document.getElementById('chat-hub');
+            chatHub.classList.remove('hidden');
+            chatHub.classList.add('flex');
+            
+            if (window.innerWidth < 640) {
+                document.getElementById('sidebar').classList.add('hidden');
+            }
+        }
+
+        async function enrichFriendProfile(peerId) {
+            if (!friends[peerId] || !_supabase) return;
+            const needsProfile = !friends[peerId].avatar || friends[peerId].name === 'Friend' || friends[peerId].name.startsWith('Dynamic Mesh') || friends[peerId].name.startsWith('Direct Mesh');
+            if (!needsProfile) return;
+            try {
+                const { data } = await _supabase
+                    .from('profiles')
+                    .select('peer_id, name, avatar_url')
+                    .eq('peer_id', peerId)
+                    .maybeSingle();
+                if (!data) return;
+                friends[peerId].name = data.name || friends[peerId].name;
+                friends[peerId].avatar = data.avatar_url || friends[peerId].avatar;
+                if (activeThreadId === peerId) {
+                    document.getElementById('active-name').textContent = friends[peerId].name;
+                    const avatarBox = document.getElementById('active-avatar-box');
+                    avatarBox.innerHTML = friends[peerId].avatar ? `<img src="${friends[peerId].avatar}" class="w-full h-full object-cover">` : friends[peerId].name.charAt(0).toUpperCase();
+                }
+                renderThreadList();
+            } catch (e) {
+                console.error('Profile fetch failed:', e);
+            }
+        }
+
+        // Marks all messages from the other party as "seen" locally + on Supabase
+        async function markMessagesAsSeen(threadId) {
+            if (!threadId) return;
+            const isGroup = !!groups[threadId];
+            const msgs = isGroup ? groups[threadId]?.messages : friends[threadId]?.messages;
+            if (!msgs) return;
+
+            let needsUpdate = false;
+            const idsToMark = [];
+
+            msgs.forEach(msg => {
+                // Only mark messages from others that aren't already "seen"
+                if (msg.senderId !== myProfile.permanentPeerId && msg.status !== 'seen') {
+                    msg.status = 'seen';
+                    idsToMark.push(msg.id);
+                    needsUpdate = true;
+                }
+            });
+
+            if (needsUpdate && idsToMark.length > 0) {
+                // Update Supabase in background (don't block UI)
+                try {
+                    await _supabase
+                        .from('messages')
+                        .update({ status: 'seen' })
+                        .in('id', idsToMark);
+                } catch(e) {
+                    console.error('Failed to mark seen on Supabase:', e);
+                }
+                // Re-render to show updated double-check icons
+                renderMessages();
+            }
+        }
+
+        function switchSidebarTab(tab) {
+            activeTab = tab;
+            document.getElementById('tab-chats').className = `flex-1 text-center py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${tab === 'chats' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-indigo-300'}`;
+            document.getElementById('tab-directory').className = `flex-1 text-center py-2.5 text-xs font-bold border-b-2 transition cursor-pointer ${tab === 'directory' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-400 hover:text-indigo-300'}`;
+            
+            renderThreadList();
+        }
+
+        async function renderThreadList() {
+            const listEl = document.getElementById('thread-list');
+            listEl.innerHTML = '';
+
+            // Render Directory Tab
+            if (activeTab === 'directory') {
+                listEl.innerHTML = `
+                    <div class="text-center text-slate-500 py-12 px-6 text-xs leading-relaxed">
+                        <i class="fa-solid fa-user-lock text-3xl opacity-40 mb-3 block"></i>
+                        <p class="font-bold text-slate-300 mb-1">Profiles are private.</p>
+                        <p>Ask your friend for their email ID and paste it in the Connect box above.</p>
+                    </div>`;
+                return;
+            }
+
+            // Render active conversations
+            const fIds = Object.keys(friends);
+            const gIds = Object.keys(groups);
+
+            if (fIds.length === 0 && gIds.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center text-slate-600 py-12 text-xs">
+                        <i class="fa-regular fa-comments text-3xl opacity-30 mb-2"></i>
+                        <p>No chat threads established yet.</p>
+                    </div>`;
+                return;
+            }
+
+            // Render friends
+            fIds.forEach(fid => {
+                const f = friends[fid];
+                const lastMsg = f.messages[f.messages.length - 1];
+                let preview = 'No messages synced yet';
+                if (lastMsg) {
+                    if (lastMsg.type === 'image') preview = '📷 Compressed Photo';
+                    else if (lastMsg.type === 'document') preview = '📄 ' + lastMsg.fileName;
+                    else preview = lastMsg.text || '';
+                }
+                const isActive = fid === activeThreadId;
+
+                const div = document.createElement('div');
+                div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition select-none ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : 'border border-transparent'}`;
+                div.onclick = () => openThread(fid);
+                div.innerHTML = `
+                    <div class="relative flex-shrink-0">
+                        <div class="w-11 h-11 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center text-sm font-bold border border-indigo-500/20 overflow-hidden">
+                            ${f.avatar ? `<img src="${f.avatar}" class="w-full h-full object-cover">` : f.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] ${f.online ? 'bg-green-500' : 'bg-slate-500'} rounded-full"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline">
+                            <h4 class="text-xs font-bold text-slate-100 truncate">${f.name}</h4>
+                            <span class="text-[9px] text-slate-500 flex-shrink-0 ml-2">${lastMsg?.timestamp || ''}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 truncate mt-0.5">${preview}</p>
+                    </div>`;
+                listEl.appendChild(div);
+            });
+
+            // Render Groups
+            gIds.forEach(gid => {
+                const g = groups[gid];
+                const lastMsg = g.messages[g.messages.length - 1];
+                let preview = 'No group messages yet';
+                if (lastMsg) {
+                    if (lastMsg.type === 'image') preview = '📷 Compressed Photo';
+                    else if (lastMsg.type === 'document') preview = '📄 ' + lastMsg.fileName;
+                    else preview = lastMsg.text || '';
+                }
+                const isActive = gid === activeThreadId;
+
+                const div = document.createElement('div');
+                div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition select-none ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : 'border border-transparent'}`;
+                div.onclick = () => openThread(gid);
+                div.innerHTML = `
+                    <div class="relative flex-shrink-0">
+                        <div class="w-11 h-11 bg-fuchsia-500/10 text-fuchsia-400 rounded-xl flex items-center justify-center text-base font-bold border border-fuchsia-500/20">
+                            <i class="fa-solid fa-user-group text-xs"></i>
+                        </div>
+                        <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-fuchsia-500 rounded-full animate-pulse"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline">
+                            <h4 class="text-xs font-bold text-slate-100 truncate">${g.name}</h4>
+                            <span class="text-[9px] text-slate-500 flex-shrink-0 ml-2">${lastMsg?.timestamp || ''}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 truncate mt-0.5">${preview}</p>
+                    </div>`;
+                listEl.appendChild(div);
+            });
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('hub-messages');
+            const emptyState = document.getElementById('conversation-empty');
+            
+            // Clear only message elements, keep empty state
+            const messages = container.querySelectorAll('.message-item');
+            messages.forEach(m => m.remove());
+
+            if (!activeThreadId) {
+                if (emptyState) emptyState.classList.add('hidden');
+                return;
+            }
+
+            const isGroup = !!groups[activeThreadId];
+            const msgs = isGroup ? groups[activeThreadId].messages : friends[activeThreadId].messages;
+
+            // Show empty state if no messages
+            if (emptyState) {
+                if (msgs.length === 0) {
+                    emptyState.classList.remove('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                }
+            }
+
+            // Simple uniqueness test to avoid repeating indices
+            const seen = new Set();
+            msgs.forEach(msg => {
+                if (seen.has(msg.id)) return;
+                seen.add(msg.id);
+
+                const isMe = msg.senderId === myProfile.permanentPeerId;
+                const wrap = document.createElement('div');
+                wrap.className = `message-item flex ${isMe ? 'justify-end' : 'justify-start'} animate-slide mb-1`;
+
+                if (msg.type === 'system') {
+                    wrap.className = 'message-item flex justify-center animate-slide my-2';
+                    wrap.innerHTML = `
+                        <div class="px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[11px] font-medium">
+                            ${msg.text}
+                        </div>`;
+                    container.appendChild(wrap);
+                    return;
+                }
+
+                let contentHtml = '';
+                if (msg.type === 'image') {
+                    contentHtml = `
+                        <div class="rounded-2xl overflow-hidden max-w-xs crisp-glass-photo cursor-pointer" onclick="openImageViewer('${msg.fileData}')">
+                            <img src="${msg.fileData}" draggable="false" class="w-full max-h-52 object-cover hover:opacity-95 transition">
+                        </div>`;
+                } else if (msg.type === 'document') {
+                    contentHtml = `
+                        <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3 cursor-pointer max-w-xs hover:bg-white/10 transition" onclick="downloadAttachment('${msg.fileData}','${msg.fileName}')">
+                            <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-file-arrow-down"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs text-slate-100 font-semibold truncate">${msg.fileName || 'Document'}</p>
+                                <p class="text-[10px] text-slate-400">${msg.fileSize || ''}</p>
+                            </div>
+                        </div>`;
+                } else {
+                    contentHtml = `<p class="text-xs leading-relaxed whitespace-pre-wrap break-words">${msg.text || ''}</p>`;
+                }
+
+                // Determine seen/unseen icon for own messages
+                let statusIcon = '';
+                if (isMe) {
+                    const msgStatus = msg.status || 'sent';
+                    if (msgStatus === 'seen') {
+                        // Double blue check = seen
+                        statusIcon = '<i class="fa-solid fa-check-double text-emerald-400 text-[9px]"></i>';
+                    } else if (msgStatus === 'delivered') {
+                        // Double gray check = delivered but not seen
+                        statusIcon = '<i class="fa-solid fa-check-double text-slate-400 text-[9px]"></i>';
+                    } else {
+                        // Single gray check = sent only
+                        statusIcon = '<i class="fa-solid fa-check text-slate-500 text-[9px]"></i>';
+                    }
+                }
+
+                // Action menu for own messages (edit/delete)
+                const actionMenu = isMe && msg.type !== 'system' ? `
+                    <div class="message-actions flex items-center gap-2 mt-1 opacity-0 transition-opacity duration-200">
+                        ${msg.type === 'text' ? `<button onclick="startEditMessage('${msg.id}')" class="text-[10px] text-indigo-400 hover:text-indigo-300 cursor-pointer px-1.5 py-0.5 rounded hover:bg-white/5 transition">Edit</button>` : ''}
+                        <button onclick="openDeleteModal('message', '${msg.id}')" class="text-[10px] text-rose-400 hover:text-rose-300 cursor-pointer px-1.5 py-0.5 rounded hover:bg-white/5 transition">Delete</button>
+                    </div>
+                ` : '';
+
+                wrap.innerHTML = `
+                    <div class="max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col group relative">
+                        ${isGroup && !isMe ? `<span class="text-[10px] font-bold text-fuchsia-400 mb-1 px-1">${msg.senderName}</span>` : ''}
+                        <div id="msg-content-${msg.id}" class="${isMe ? 'bubble-sent' : 'bubble-received'} px-4 py-3 rounded-2xl text-slate-100">
+                            ${contentHtml}
+                        </div>
+                        <div id="msg-edit-${msg.id}" class="hidden w-full">
+                            <div class="flex flex-col gap-2">
+                                <textarea id="edit-input-${msg.id}" rows="2" class="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white outline-none resize-none">${msg.text || ''}</textarea>
+                                <div class="flex gap-2 justify-end">
+                                    <button onclick="cancelEditMessage('${msg.id}')" class="text-[10px] text-slate-400 hover:text-white px-2 py-1">Cancel</button>
+                                    <button onclick="saveEditMessage('${msg.id}')" class="text-[10px] bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1 rounded-lg">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-[9px] text-slate-500 mt-1 select-none px-1 flex items-center gap-1.5">
+                            ${msg.timestamp}
+                            ${statusIcon}
+                        </span>
+                        ${actionMenu}
+                    </div>`;
+                container.appendChild(wrap);
+            });
+
+            if (msgs.length > 0) {
+                // Ensure immediate scroll
+                container.scrollTop = container.scrollHeight;
+                // Double guarantee scroll after DOM update completes
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // ────────── Advanced Photo Compression & Documents ──────────
+        function triggerImageUpload() {
+            document.getElementById('attach-menu').classList.add('hidden');
+            document.getElementById('image-input').click();
+        }
+        function triggerDocUpload() {
+            document.getElementById('attach-menu').classList.add('hidden');
+            document.getElementById('doc-input').click();
+        }
+
+        function handleImageFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image size threshold: 5MB', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width, h = img.height;
+                    const maxDim = 500;
+                    if (w > h) {
+                        if (w > maxDim) { h *= maxDim / w; w = maxDim; }
+                    } else {
+                        if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const compressed = canvas.toDataURL('image/jpeg', 0.45);
+
+                    currentAttachment = {
+                        type: 'image',
+                        data: compressed,
+                        name: file.name.replace(/\.[^.]+$/, '.jpg'),
+                        size: (compressed.length * 0.75 / 1024).toFixed(1) + ' KB'
+                    };
+
+                    showAttachmentPreview('image', currentAttachment.name, currentAttachment.size);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        function handleDocFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Document size threshold: 5MB', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentAttachment = {
+                    type: 'document',
+                    data: event.target.result,
+                    name: file.name,
+                    size: (file.size / 1024).toFixed(1) + ' KB'
+                };
+                showAttachmentPreview('document', file.name, (file.size / 1024).toFixed(1) + ' KB');
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        function showAttachmentPreview(type, name, size) {
+            const preview = document.getElementById('attachment-preview');
+            const iconView = document.getElementById('attach-icon-view');
+            preview.classList.remove('hidden');
+            document.getElementById('attach-name-view').textContent = name;
+            document.getElementById('attach-size-view').textContent = size;
+
+            if (type === 'image') {
+                iconView.innerHTML = `<i class="fa-solid fa-image"></i>`;
+            } else {
+                iconView.innerHTML = `<i class="fa-solid fa-file-invoice"></i>`;
+            }
+        }
+
+        function clearAttachment() {
+            currentAttachment = null;
+            document.getElementById('attachment-preview').classList.add('hidden');
+        }
+
+        function downloadAttachment(data, name) {
+            const link = document.createElement('a');
+            link.href = data;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Image Viewer Modal Actions
+        function openImageViewer(src) {
+            const modal = document.getElementById('image-viewer-modal');
+            const img = document.getElementById('image-viewer-img');
+            img.src = src;
+            modal.classList.remove('hidden');
+        }
+
+        function closeImageViewer() {
+            const modal = document.getElementById('image-viewer-modal');
+            modal.classList.add('hidden');
+        }
+
+        // ────────── Advanced Multi-Participant Creating Group Logic ──────────
+        function toggleGroupModal() {
+            const modal = document.getElementById('group-modal');
+            modal.classList.toggle('hidden');
+
+            const flist = document.getElementById('group-friend-list');
+            const friendIds = Object.keys(friends);
+
+            if (friendIds.length === 0) {
+                flist.innerHTML = `<span class="text-xs text-slate-600 text-center py-2">No connected friends found in memory. Please add friends in Directory or by ID first.</span>`;
+                return;
+            }
+
+            flist.innerHTML = friendIds.map(fid => {
+                const f = friends[fid];
+                return `
+                    <label class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition cursor-pointer">
+                        <input type="checkbox" value="${fid}" class="group-friend-checkbox rounded border-white/10 text-indigo-500 focus:ring-indigo-500 bg-white/5">
+                        <span class="text-xs text-slate-200 select-none">${f.name}</span>
+                    </label>`;
+            }).join('');
+        }
+
+        async function triggerCreateGroup() {
+            const title = document.getElementById('group-name-input').value.trim();
+            if (!title) {
+                showToast('Please insert a Title for the group', 'error');
+                return;
+            }
+
+            const checkBoxes = document.querySelectorAll('.group-friend-checkbox:checked');
+            if (checkBoxes.length === 0) {
+                showToast('Select online connected friends to join group', 'error');
+                return;
+            }
+
+            const members = [myProfile.permanentPeerId];
+            checkBoxes.forEach(cb => members.push(cb.value));
+
+            const gid = 'group_' + Date.now() + Math.random().toString(36).slice(2, 6);
+
+            // Directly register on Supabase
+            try {
+                const { error } = await _supabase.from('groups').insert([{
+                    group_id: gid,
+                    name: title,
+                    host_id: myProfile.permanentPeerId,
+                    members: members
+                }]);
+
+                if (error) {
+                    showToast('Failed to create group online', 'error');
+                    return;
+                }
+
+                groups[gid] = {
+                    name: title,
+                    hostId: myProfile.permanentPeerId,
+                    members: members,
+                    messages: []
+                };
+
+                document.getElementById('group-name-input').value = '';
+                toggleGroupModal();
+                renderThreadList();
+                openThread(gid);
+                showToast('Mesh Group space successfully registered!', 'info');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        // ────────── Dynamic Controls UI/Helpers ──────────
+        function toggleThemeMenu() { document.getElementById('theme-menu').classList.toggle('hidden'); }
+        function changeTheme(theme) {
+            document.getElementById('app-body').className = theme;
+            toggleThemeMenu();
+        }
+
+        // ────────── End-to-End Encryption Toggle ──────────
+        let e2eEnabled = true;
+
+        function toggleE2E() {
+            e2eEnabled = !e2eEnabled;
+            const btn = document.getElementById('e2e-btn');
+            const label = document.getElementById('e2e-label');
+            const chatBadge = document.getElementById('chat-e2e-badge');
+
+            if (e2eEnabled) {
+                btn.className = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20';
+                label.textContent = 'E2E ON';
+                if (chatBadge) {
+                    chatBadge.className = 'text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-0.5 select-none';
+                    chatBadge.innerHTML = '<i class="fa-solid fa-lock text-[8px]"></i> E2E';
+                }
+                showToast('End-to-End Encryption enabled. Messages are secured.', 'info');
+            } else {
+                btn.className = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 bg-rose-500/10 text-rose-400 border border-rose-500/25 hover:bg-rose-500/20';
+                label.textContent = 'E2E OFF';
+                if (chatBadge) {
+                    chatBadge.className = 'text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-0.5 select-none';
+                    chatBadge.innerHTML = '<i class="fa-solid fa-lock-open text-[8px]"></i> E2E';
+                }
+                showToast('Encryption disabled. Messages are in plaintext.', 'error');
+            }
+        }
+
+        function toggleAttachMenu() {
+            document.getElementById('attach-menu').classList.toggle('hidden');
+            document.getElementById('emoji-picker').classList.add('hidden');
+        }
+        function toggleEmojiPicker() {
+            document.getElementById('emoji-picker').classList.toggle('hidden');
+            document.getElementById('attach-menu').classList.add('hidden');
+        }
+        function appendEmoji(emoji) {
+            const inp = document.getElementById('msg-input');
+            inp.value += emoji;
+            inp.focus();
+            inp.dispatchEvent(new Event('input'));
+            document.getElementById('emoji-picker').classList.add('hidden');
+        }
+
+        function copyMyId() {
+            navigator.clipboard.writeText(myProfile.permanentPeerId).then(() => {
+                showToast('Direct Peer ID signature copied', 'info');
+            });
+        }
+        function shareMyId() {
+            const url = window.location.origin + window.location.pathname + '#' + myProfile.permanentPeerId;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Direct invitation link copied', 'info');
+            });
+        }
+
+        function backToSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
+            if (window.innerWidth < 640) {
+                document.getElementById('chat-hub').classList.add('hidden');
+            }
+        }
+
+        async function executeDeleteThread() {
+            if (!activeThreadId) return;
+            const threadId = activeThreadId;
+            const isGroup = !!groups[threadId];
+
+            try {
+                if (isGroup) {
+                    await _supabase.from('messages').delete().eq('group_id', threadId);
+                    await _supabase.from('groups').delete().eq('group_id', threadId);
+                } else {
+                    await _supabase
+                        .from('messages')
+                        .delete()
+                        .eq('sender_id', myProfile.permanentPeerId)
+                        .eq('recipient_id', threadId);
+                    await _supabase
+                        .from('messages')
+                        .delete()
+                        .eq('sender_id', threadId)
+                        .eq('recipient_id', myProfile.permanentPeerId);
+                }
+            } catch (e) {
+                console.error('Supabase delete failed:', e);
+                showToast('Cloud delete failed. Check Supabase policies.', 'error');
+                return;
+            }
+
+            if (groups[threadId]) {
+                delete groups[threadId];
+            } else {
+                delete friends[threadId];
+            }
+            openThread(null);
+            renderThreadList();
+            showToast('Conversation deleted from Supabase', 'info');
+        }
+
+        // ────────── Individual Message Edit/Delete ──────────
+        let _pendingDelete = { type: null, id: null };
+
+        function openDeleteModal(type, id, customText) {
+            _pendingDelete = { type, id };
+            const modal = document.getElementById('delete-modal');
+            const textEl = document.getElementById('delete-modal-text');
+            textEl.textContent = customText || (type === 'thread' 
+                ? 'This will permanently delete the entire conversation from Supabase. This action cannot be undone.'
+                : 'This action cannot be undone. The message will be permanently removed from this conversation.');
+            modal.classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-modal').classList.add('hidden');
+            _pendingDelete = { type: null, id: null };
+        }
+
+        async function confirmDelete() {
+            const { type, id } = _pendingDelete;
+            closeDeleteModal();
+            
+            if (type === 'message') {
+                await executeDeleteMessage(id);
+            } else if (type === 'thread') {
+                await executeDeleteThread();
+            }
+        }
+
+        async function executeDeleteMessage(msgId) {
+            if (!activeThreadId) return;
+            
+            const isGroup = !!groups[activeThreadId];
+            const msgs = isGroup ? groups[activeThreadId].messages : friends[activeThreadId].messages;
+            const msgIndex = msgs.findIndex(m => m.id === msgId);
+            if (msgIndex === -1) return;
+            
+            try {
+                await _supabase.from('messages').delete().eq('id', msgId);
+                msgs.splice(msgIndex, 1);
+                renderMessages();
+                renderThreadList();
+                showToast('Message deleted', 'info');
+            } catch (e) {
+                console.error('Delete message failed:', e);
+                showToast('Failed to delete message', 'error');
+            }
+        }
+
+        function startEditMessage(msgId) {
+            const contentDiv = document.getElementById(`msg-content-${msgId}`);
+            const editDiv = document.getElementById(`msg-edit-${msgId}`);
+            if (contentDiv && editDiv) {
+                contentDiv.classList.add('hidden');
+                editDiv.classList.remove('hidden');
+                const textarea = document.getElementById(`edit-input-${msgId}`);
+                if (textarea) {
+                    textarea.focus();
+                    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                }
+            }
+        }
+
+        function cancelEditMessage(msgId) {
+            const contentDiv = document.getElementById(`msg-content-${msgId}`);
+            const editDiv = document.getElementById(`msg-edit-${msgId}`);
+            if (contentDiv && editDiv) {
+                contentDiv.classList.remove('hidden');
+                editDiv.classList.add('hidden');
+            }
+        }
+
+        async function saveEditMessage(msgId) {
+            const textarea = document.getElementById(`edit-input-${msgId}`);
+            if (!textarea) return;
+            
+            const newText = textarea.value.trim();
+            if (!newText) {
+                showToast('Message cannot be empty', 'error');
+                return;
+            }
+
+            const isGroup = !!groups[activeThreadId];
+            const msgs = isGroup ? groups[activeThreadId].messages : friends[activeThreadId].messages;
+            const msg = msgs.find(m => m.id === msgId);
+            if (!msg) return;
+
+            try {
+                await _supabase.from('messages').update({ text: newText }).eq('id', msgId);
+                msg.text = newText;
+                renderMessages();
+                renderThreadList();
+                showToast('Message edited', 'info');
+            } catch (e) {
+                console.error('Edit message failed:', e);
+                showToast('Failed to edit message', 'error');
+            }
+        }
+
+        function showToast(msg, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const styling = type === 'error' 
+                ? 'border-rose-500/20 bg-rose-950/40 text-rose-300' 
+                : 'border-indigo-500/20 bg-indigo-950/40 text-indigo-200';
+            toast.className = `p-3 px-4 rounded-xl border text-xs shadow-lg animate-slide flex items-center gap-2.5 z-50 glass-panel ${styling}`;
+            toast.innerHTML = `<i class="fa-solid fa-${type === 'error' ? 'circle-exclamation' : 'circle-info'} text-sm"></i> <span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-12px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // Catch general clicks
+        document.addEventListener('click', (e) => {
+            const tm = document.getElementById('theme-menu');
+            const am = document.getElementById('attach-menu');
+            const ep = document.getElementById('emoji-picker');
+            const dm = document.getElementById('delete-modal');
+            if (tm && !e.target.closest('#theme-menu') && !e.target.closest('[onclick="toggleThemeMenu()"]')) tm.classList.add('hidden');
+            if (am && !e.target.closest('#attach-menu') && !e.target.closest('[onclick="toggleAttachMenu()"]')) am.classList.add('hidden');
+            if (ep && !e.target.closest('#emoji-picker') && !e.target.closest('[onclick="toggleEmojiPicker()"]')) ep.classList.add('hidden');
+            if (dm && !e.target.closest('.glass-panel') && !dm.classList.contains('hidden')) closeDeleteModal();
+        });
+
+        // ────────── Service Worker Registration (PWA) ──────────
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('[PWA] Service Worker registered:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('[PWA] Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
