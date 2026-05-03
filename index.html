@@ -2,17 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NexChat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>NexChat — Secure Messenger</title>
+    
+    <!-- ═══════ PWA MANIFEST ═══════ -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#090d16">
+    
+    <!-- ═══════ THEME & APP COLOR ═══════ -->
+    <meta name="theme-color" content="#6366f1" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)">
+    <meta name="msapplication-navbutton-color" content="#090d16">
+    <meta name="msapplication-TileColor" content="#6366f1">
+    
+    <!-- ═══════ APPLE iOS PWA ═══════ -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="NexChat">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- ═══════ ANDROID/CHROME PWA ═══════ -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="NexChat">
-    <meta name="msapplication-TileColor" content="#090d16">
-    <meta name="apple-touch-fullscreen" content="yes">
+    
+    <!-- ═══════ APP ICONS (SVG-based, no external file needed) ═══════ -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%23d946ef'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z' fill='white' opacity='0.95'/><circle cx='82' cy='93' r='5' fill='%236366f1'/><circle cx='96' cy='93' r='5' fill='%238b5cf6'/><circle cx='110' cy='93' r='5' fill='%23d946ef'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%23d946ef'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z' fill='white' opacity='0.95'/><circle cx='82' cy='93' r='5' fill='%236366f1'/><circle cx='96' cy='93' r='5' fill='%238b5cf6'/><circle cx='110' cy='93' r='5' fill='%23d946ef'/></svg>">
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%23d946ef'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z' fill='white' opacity='0.95'/><circle cx='82' cy='93' r='5' fill='%236366f1'/><circle cx='96' cy='93' r='5' fill='%238b5cf6'/><circle cx='110' cy='93' r='5' fill='%23d946ef'/></svg>">
+    
     <!-- Tailwind v4 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Supabase CDN -->
@@ -663,15 +680,20 @@
                 </button>
             </div>
 
-            <!-- Sign Out -->
+            <!-- Install Native App -->
             <div>
-                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Install App</label>
-                <button onclick="triggerInstall()" id="install-btn" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-fuchsia-600 hover:from-indigo-400 hover:to-fuchsia-500 text-white border border-indigo-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20">
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen text-indigo-400"></i> Install App
+                </label>
+                <button onclick="installPWA()" id="install-pwa-btn" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-rose-600 hover:opacity-90 text-white rounded-xl text-sm font-bold cursor-pointer transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 active:scale-95">
                     <i class="fa-solid fa-download"></i> Install NexChat
                 </button>
-                <p id="install-hint" class="text-[10px] text-slate-500 mt-2 text-center">Add to Home Screen for the best native experience</p>
+                <p class="text-[10px] text-slate-500 mt-2 text-center leading-relaxed">
+                    Get the full native app experience on your home screen with offline support and push notifications.
+                </p>
             </div>
 
+            <!-- Sign Out -->
             <div>
                 <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Account</label>
                 <button onclick="signOut()" class="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2">
@@ -681,8 +703,9 @@
 
             <!-- Info -->
             <div class="text-center text-xs text-slate-500 pt-4 border-t border-white/5">
-                <p class="font-bold text-slate-400">NexChat v2.0</p>
+                <p class="font-bold text-slate-400">NexChat v3.0</p>
                 <p class="mt-1">Secure peer-to-peer messaging</p>
+                <p class="mt-1 text-[9px] opacity-70" id="pwa-status"></p>
             </div>
         </div>
     </div>
@@ -820,190 +843,277 @@
         let realtimeChannels = [];
         let backgroundSyncInterval = null;
 
-        // ────────── PWA Install Prompt Capture ──────────
+        // ═══════════════ ENHANCED PWA INSTALL HANDLER (GLOBAL) ═══════════════
         let deferredInstallPrompt = null;
+        let isAppInstalled = false;
 
+        // Detect already-installed PWA
+        function isPWAInstalled() {
+            return window.matchMedia('(display-mode: standalone)').matches ||
+                   window.matchMedia('(display-mode: fullscreen)').matches ||
+                   window.navigator.standalone === true ||
+                   document.referrer.includes('android-app://');
+        }
+
+        // Capture install prompt event
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredInstallPrompt = e;
             console.log('[PWA] Install prompt captured');
+            updateInstallButtonUI();
         });
 
+        // Track successful install
         window.addEventListener('appinstalled', () => {
+            console.log('[PWA] App installed successfully');
             deferredInstallPrompt = null;
-            const installBtn = document.getElementById('install-btn');
-            if (installBtn) {
-                installBtn.innerHTML = '<i class="fa-solid fa-check"></i> App Installed';
-                installBtn.className = installBtn.className.replace('from-indigo-500 to-fuchsia-600', 'from-emerald-600 to-emerald-700');
-            }
+            isAppInstalled = true;
+            updateInstallButtonUI();
+            showInstallSuccessOverlay();
         });
 
-        // Global install function
-        window.triggerInstall = async function() {
-            if (deferredInstallPrompt) {
-                deferredInstallPrompt.prompt();
-                const { outcome } = await deferredInstallPrompt.userChoice;
-                console.log('[PWA] Install outcome:', outcome);
-                deferredInstallPrompt = null;
-                return outcome === 'accepted';
-            }
-            // Fallback for iOS / already installed
-            return false;
-        };
-
-        // Check if running as installed PWA
-        function isInstalled() {
-            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        function showInstallSuccessOverlay() {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md p-4';
+            overlay.innerHTML = `
+                <div class="bg-gradient-to-br from-indigo-600 via-fuchsia-600 to-rose-600 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-white/20">
+                    <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-check text-white text-4xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-2">Installed!</h2>
+                    <p class="text-white/90 text-sm mb-5">NexChat is now installed as a native app on your device.</p>
+                    <button onclick="this.parentElement.parentElement.remove()" class="bg-white text-indigo-600 px-6 py-2.5 rounded-xl font-bold cursor-pointer hover:bg-white/90 transition">
+                        Awesome!
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+            setTimeout(() => overlay.remove(), 5000);
         }
 
-        // ────────── Main Boot Sequence ──────────
-        window.addEventListener('DOMContentLoaded', async () => {
-            // 1. Register Service Worker
+        function updateInstallButtonUI() {
+            const btn = document.getElementById('install-pwa-btn');
+            if (!btn) return;
+            
+            if (isAppInstalled || isPWAInstalled()) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> App Installed';
+                btn.disabled = true;
+                btn.classList.add('opacity-60', 'cursor-not-allowed');
+            } else if (deferredInstallPrompt) {
+                btn.innerHTML = '<i class="fa-solid fa-download"></i> Install NexChat';
+                btn.disabled = false;
+                btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            } else {
+                // Show iOS install instructions or wait for prompt
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS) {
+                    btn.innerHTML = '<i class="fa-solid fa-mobile"></i> Install Instructions';
+                } else {
+                    btn.innerHTML = '<i class="fa-solid fa-download"></i> Install NexChat';
+                }
+                btn.disabled = false;
+                btn.classList.remove('opacity-60', 'cursor-not-allowed');
+            }
+        }
+
+        async function installPWA() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (isPWAInstalled()) {
+                alert('NexChat is already installed on your device!');
+                return;
+            }
+            
+            if (isIOS) {
+                // Show iOS-specific install instructions
+                showIOSInstallGuide();
+                return;
+            }
+            
+            if (!deferredInstallPrompt) {
+                showManualInstallGuide();
+                return;
+            }
+            
+            try {
+                deferredInstallPrompt.prompt();
+                const { outcome } = await deferredInstallPrompt.userChoice;
+                console.log('[PWA] User choice:', outcome);
+                deferredInstallPrompt = null;
+                updateInstallButtonUI();
+            } catch (err) {
+                console.error('[PWA] Install error:', err);
+                showManualInstallGuide();
+            }
+        }
+
+        function showIOSInstallGuide() {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-4';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML = `
+                <div class="bg-[#0a0f1c] border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 max-w-md w-full">
+                    <div class="text-center mb-5">
+                        <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-fuchsia-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-brands fa-apple text-white text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-1">Install on iOS</h3>
+                        <p class="text-xs text-slate-400">Add NexChat to your home screen</p>
+                    </div>
+                    <div class="space-y-3 mb-5">
+                        <div class="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                            <span class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">1</span>
+                            <p class="text-sm text-slate-200">Tap the <i class="fa-solid fa-arrow-up-from-bracket text-indigo-400 mx-1"></i> Share button in Safari</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                            <span class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">2</span>
+                            <p class="text-sm text-slate-200">Scroll and tap <strong>"Add to Home Screen"</strong></p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                            <span class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">3</span>
+                            <p class="text-sm text-slate-200">Tap <strong>"Add"</strong> to install NexChat</p>
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-fuchsia-600 text-white font-bold rounded-xl cursor-pointer">
+                        Got it!
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+        }
+
+        function showManualInstallGuide() {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-4';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            const isAndroid = /android/i.test(navigator.userAgent);
+            overlay.innerHTML = `
+                <div class="bg-[#0a0f1c] border border-white/10 rounded-t-3xl sm:rounded-3xl p-6 max-w-md w-full">
+                    <div class="text-center mb-5">
+                        <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-fuchsia-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-mobile-screen text-white text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-1">Install NexChat</h3>
+                        <p class="text-xs text-slate-400">${isAndroid ? 'Add to your home screen' : 'Install on your device'}</p>
+                    </div>
+                    <div class="space-y-3 mb-5">
+                        <div class="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                            <span class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">1</span>
+                            <p class="text-sm text-slate-200">Tap the menu <i class="fa-solid fa-ellipsis-vertical text-indigo-400 mx-1"></i> in your browser</p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                            <span class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">2</span>
+                            <p class="text-sm text-slate-200">Select <strong>"${isAndroid ? 'Install app' : 'Add to Home Screen'}"</strong></p>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-white/5 rounded-xl">
+                            <span class="w-7 h-7 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">3</span>
+                            <p class="text-sm text-slate-200">Confirm to install NexChat</p>
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-fuchsia-600 text-white font-bold rounded-xl cursor-pointer">
+                        Got it!
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+        }
+
+        // Window Startup Integration
+        window.onload = async () => {
+            // Initialize install button UI on load
+            updateInstallButtonUI();
+
+            // Register Service Worker with auto-update on reload
             if ('serviceWorker' in navigator) {
                 try {
-                    const reg = await navigator.serviceWorker.register('./sw.js');
-                    console.log('[PWA] SW registered');
-
-                    // Auto-update: when new SW found, reload
+                    const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+                    console.log('[SW] Registered:', reg.scope);
+                    
+                    // Listen for updates
                     reg.addEventListener('updatefound', () => {
-                        const sw = reg.installing;
-                        if (!sw) return;
-                        sw.addEventListener('statechange', () => {
-                            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('[PWA] New version found, reloading...');
-                                window.location.reload();
-                            }
-                        });
+                        const newWorker = reg.installing;
+                        if (newWorker) {
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[SW] New version available');
+                                    showUpdateAvailable(reg);
+                                }
+                            });
+                        }
                     });
+
+                    // Auto reload on controller change
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        window.location.reload();
+                    });
+
+                    // Check for updates every 60 seconds
+                    setInterval(() => reg.update(), 60000);
                 } catch (err) {
-                    console.warn('[PWA] SW registration error:', err);
+                    console.error('[SW] Registration failed:', err);
                 }
             }
 
-            // 2. Hide install button if already installed
-            if (isInstalled()) {
-                const installBtn = document.getElementById('install-btn');
-                if (installBtn) {
-                    installBtn.innerHTML = '<i class="fa-solid fa-check"></i> App Installed';
-                    installBtn.className = 'w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold cursor-default transition flex items-center justify-center gap-2';
-                }
+            function showUpdateAvailable(reg) {
+                const banner = document.createElement('div');
+                banner.className = 'fixed bottom-20 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-[180] bg-gradient-to-r from-indigo-600 to-fuchsia-600 rounded-2xl p-4 shadow-2xl border border-white/20 animate-slide';
+                banner.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-arrows-rotate text-white text-xl"></i>
+                        <div class="flex-1">
+                            <p class="text-white text-sm font-bold">Update Available</p>
+                            <p class="text-white/80 text-xs">A new version of NexChat is ready</p>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.querySelector('.update-now-btn').click()" class="bg-white text-indigo-600 px-3 py-1.5 rounded-lg font-bold text-xs cursor-pointer">Update</button>
+                        <button class="update-now-btn hidden"></button>
+                    </div>`;
+                document.body.appendChild(banner);
+                banner.querySelector('.update-now-btn').onclick = () => {
+                    banner.remove();
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                    setTimeout(() => window.location.reload(), 500);
+                };
             }
 
-            // 3. Init Supabase
+            // Setup Supabase first
             _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // 4. Load profile and data
             await loadUserProfile();
+            
+            // Load unread state
             loadUnreadState();
-
+            
+            // Initialize known message IDs
             Object.keys(friends).forEach(fid => {
                 friends[fid].messages.forEach(m => _lastKnownMsgIds.add(m.id));
             });
             Object.keys(groups).forEach(gid => {
                 groups[gid].messages.forEach(m => _lastKnownMsgIds.add(m.id));
             });
-
-            // 5. Apply saved preferences
-            const savedTheme = localStorage.getItem('nexchat_theme');
-            if (savedTheme) document.getElementById('app-body').className = savedTheme;
-
-            const savedFont = localStorage.getItem('nexchat_font') || 'outfit';
-            const body = document.getElementById('app-body');
-            body.classList.remove('font-outfit', 'font-kalpurush', 'font-noto-bengali');
-            if (savedFont !== 'outfit') body.classList.add('font-' + savedFont);
-
-            const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
-            const hub = document.getElementById('chat-hub');
-            if (hub) hub.classList.add('text-size-' + savedSize);
-            applySizeButtonStates(savedSize);
-
-            // 6. Sync UI states
+            
+            // Sync notification button state
             syncNotificationButtonState();
+            
+            // Fade out skeleton
+            document.getElementById('skeleton-loader').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('skeleton-loader').classList.add('hidden'), 500);
 
-            // 7. Fade out skeleton
-            const skeleton = document.getElementById('skeleton-loader');
-            if (skeleton) {
-                skeleton.style.transition = 'opacity 0.6s ease, visibility 0.6s ease';
-                skeleton.style.opacity = '0';
-                setTimeout(() => { skeleton.style.display = 'none'; }, 600);
-            }
-
-            // 8. Textarea auto-resize
+            // Setup real-time dynamic sizing for textarea inputs
             const msgInput = document.getElementById('msg-input');
-            if (msgInput) {
-                msgInput.addEventListener('input', function() {
-                    this.style.height = 'auto';
-                    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-                });
-            }
+            msgInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
 
-            // 9. Background sync
-            pollingInterval = setInterval(() => { syncDataQueue(); }, 15000);
+            // Light fallback sync only; primary updates come from Supabase Realtime
+            pollingInterval = setInterval(() => {
+                syncDataQueue();
+            }, 20000);
 
-            // 10. Pull to Refresh
-            setupPullToRefresh();
-
-            // 11. Set viewport height variable for mobile
-            function setVH() {
-                const vh = window.innerHeight * 0.01;
-                document.documentElement.style.setProperty('--vh', `${vh}px`);
-            }
-            setVH();
-            window.addEventListener('resize', setVH);
-            window.addEventListener('orientationchange', () => setTimeout(setVH, 100));
-
-            // 12. Listen for realtime presence/heartbeat
-            startPresenceHeartbeat();
-        });
-
-        // ────────── Pull to Refresh ──────────
-        function setupPullToRefresh() {
-            let ptrStartY = 0;
-            let ptrDistance = 0;
-            const ptrEl = document.getElementById('ptr-indicator');
-            if (!ptrEl) return;
-
-            document.addEventListener('touchstart', (e) => {
-                const messagesEl = document.getElementById('hub-messages');
-                const atTop = !messagesEl || messagesEl.scrollTop <= 0;
-                if (window.scrollY <= 0 && atTop && activeThreadId) {
-                    ptrStartY = e.touches[0].clientY;
-                }
-            }, { passive: true });
-
-            document.addEventListener('touchmove', (e) => {
-                if (ptrStartY === 0) return;
-                ptrDistance = e.touches[0].clientY - ptrStartY;
-                if (ptrDistance > 0 && ptrDistance < 180) {
-                    if (ptrEl) {
-                        ptrEl.style.top = Math.min(ptrDistance * 0.4, 50) + 'px';
-                        ptrEl.style.transform = `translateX(-50%) rotate(${ptrDistance * 3}deg)`;
-                        ptrEl.style.opacity = Math.min(ptrDistance / 80, 1);
-                    }
-                }
-            }, { passive: true });
-
-            document.addEventListener('touchend', async () => {
-                if (ptrDistance > 80) {
-                    if (ptrEl) {
-                        ptrEl.classList.add('active');
-                        ptrEl.style.top = '30px';
-                        ptrEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:#6366f1;font-size:22px"></i>';
-                    }
-                    await syncDataQueue();
-                    await new Promise(r => setTimeout(r, 600));
-                }
-                if (ptrEl) {
-                    ptrEl.classList.remove('active');
-                    ptrEl.style.top = '-60px';
-                    ptrEl.style.transform = 'translateX(-50%)';
-                    ptrEl.style.opacity = '0';
-                    ptrEl.innerHTML = '<i class="fa-solid fa-arrow-rotate-down"></i>';
-                }
-                ptrStartY = 0;
-                ptrDistance = 0;
-            }, { passive: true });
-        }
+            // Background fallback for edit/delete consistency
+            backgroundSyncInterval = setInterval(() => {
+                if (myProfile.permanentPeerId) syncDataQueue();
+            }, 30000);
+        };
 
         // ────────── Profile Registration & Supabase State ──────────
         async function loadUserProfile() {
@@ -3121,6 +3231,54 @@
             if (dm && !e.target.closest('.glass-panel') && !dm.classList.contains('hidden')) closeDeleteModal();
         });
 
+        // ────────── Pull to Refresh ──────────
+        let ptrStartY = 0;
+        let ptrCurrentY = 0;
+        let ptrThreshold = 100;
+        let ptrIndicator = document.getElementById('ptr-indicator');
+        let ptrRotating = false;
+
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0 || document.getElementById('hub-messages')?.scrollTop === 0) {
+                ptrStartY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (ptrStartY === 0) return;
+            ptrCurrentY = e.touches[0].clientY;
+            const diff = ptrCurrentY - ptrStartY;
+            
+            if (diff > 0 && diff < ptrThreshold * 2) {
+                e.preventDefault();
+                ptrIndicator.style.top = (diff / 3 - 60) + 'px';
+                ptrIndicator.querySelector('i').style.transform = `rotate(${diff}deg)`;
+                
+                if (diff > ptrThreshold && !ptrRotating) {
+                    ptrRotating = true;
+                    ptrIndicator.querySelector('i').classList.add('fa-spin');
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', async () => {
+            if (ptrRotating) {
+                // Trigger refresh
+                ptrIndicator.classList.add('active');
+                await syncDataQueue();
+                setTimeout(() => {
+                    ptrIndicator.classList.remove('active');
+                    ptrIndicator.style.top = '-60px';
+                    ptrIndicator.querySelector('i').classList.remove('fa-spin');
+                    ptrRotating = false;
+                }, 1000);
+            } else {
+                ptrIndicator.style.top = '-60px';
+                ptrIndicator.querySelector('i').style.transform = 'rotate(0deg)';
+            }
+            ptrStartY = 0;
+            ptrCurrentY = 0;
+        });
     </script>
 </body>
 </html>
