@@ -2,41 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>NexChat — Secure P2P Messenger</title>
-    
-    <!-- PWA Meta Tags -->
-    <meta name="application-name" content="NexChat">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NexChat">
-    <meta name="description" content="Secure peer-to-peer messenger with E2E encryption, photo compression, and real-time sync.">
-    <meta name="theme-color" content="#090d16">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="format-detection" content="telephone=no">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="NexChat — Secure P2P Messenger">
-    <meta property="og:description" content="End-to-end encrypted peer-to-peer messaging with photo compression.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="/icons/icon-512.png">
-    
-    <!-- PWA Manifest & Icons -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
-    <link rel="mask-icon" href="/logo.svg" color="#6366f1">
-    <link rel="shortcut icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NexChat — PWA Messenger</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="apple-touch-icon" href="logo.svg">
+    <!-- Tailwind v4 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- PeerJS for direct WebRTC -->
+    <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+    <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
-    <!-- Core Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Kalpurush Bangla Font -->
+    <link rel="stylesheet" href="https://banglawebfonts.pages.dev/css/kalpurush.css">
     
     <style>
         :root {
@@ -116,23 +99,7 @@
             margin-top: auto;
         }
         
-        /* Protection Layer: No selection, screenshot deterrents */
-        body {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-        
-        @media print {
-            body { display: none !important; }
-        }
-
-        /* Screen blur on blur/inactive state (prevents snipping tool captures) */
-        .secure-blur {
-            filter: blur(20px) !important;
-            pointer-events: none !important;
-        }
+        /* Removed screenshot protection */
         
         /* Thin Sharp Glass Photo Border */
         .crisp-glass-photo {
@@ -147,107 +114,39 @@
         .message-item:hover .message-actions {
             opacity: 1 !important;
         }
+        
+        /* Text size variants */
+        .text-size-small .message-item p, .text-size-small #msg-input { font-size: 11px !important; }
+        .text-size-normal .message-item p, .text-size-normal #msg-input { font-size: 13px !important; }
+        .text-size-large .message-item p, .text-size-large #msg-input { font-size: 15px !important; }
+        .text-size-xl .message-item p, .text-size-xl #msg-input { font-size: 17px !important; }
+        
+        /* Compact message spacing */
+        .message-item { margin-bottom: 2px !important; }
+        .message-item.expanded { margin-bottom: 8px !important; }
+        
+        /* Settings panel */
+        .settings-panel {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .settings-panel.open {
+            transform: translateX(0);
+        }
 
-        /* ===== SKELETON LOADING ===== */
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
+        /* Profile Edit Panel */
+        .profile-panel {
+            transform: translateY(100%);
+            transition: transform 0.35s ease;
         }
-        
-        .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 8px;
+        .profile-panel.open {
+            transform: translateY(0);
         }
-        
-        .skeleton-text { height: 12px; margin: 8px 0; }
-        .skeleton-title { height: 16px; width: 60%; margin-bottom: 8px; }
-        .skeleton-avatar { width: 48px; height: 48px; border-radius: 12px; }
-        .skeleton-bubble { height: 60px; width: 200px; border-radius: 16px; }
-        
-        /* ===== RIPPLE EFFECT ===== */
-        .ripple-container {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .ripple {
-            position: absolute;
-            border-radius: 50%;
-            transform: scale(0);
-            animation: ripple-effect 0.6s linear;
-            background: rgba(255, 255, 255, 0.15);
-            pointer-events: none;
-        }
-        
-        @keyframes ripple-effect {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
-        
-        /* ===== FLOATING ACTION BUTTONS ===== */
-        .fab {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 40;
-        }
-        
-        /* ===== PULSE INDICATOR ===== */
-        @keyframes pulse-ring {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            50% { opacity: 0.4; }
-            100% { transform: scale(1.3); opacity: 0; }
-        }
-        
-        .pulse-indicator::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background: inherit;
-            animation: pulse-ring 2s ease-out infinite;
-        }
-        
-        /* ===== NOTCH SAFE AREA ===== */
-        .safe-top { padding-top: env(safe-area-inset-top); }
-        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        
-        /* ===== MICRO INTERACTIONS ===== */
-        .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .hover-lift:hover { transform: translateY(-2px); }
-        
-        .press-shrink { transition: transform 0.1s ease; }
-        .press-shrink:active { transform: scale(0.96); }
-        
-        /* ===== TOOLTIP ===== */
-        [data-tip] {
-            position: relative;
-        }
-        [data-tip]::after {
-            content: attr(data-tip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(4px);
-            padding: 6px 10px;
-            background: #1e1e2e;
-            color: #fff;
-            font-size: 11px;
-            white-space: nowrap;
-            border-radius: 6px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s, transform 0.2s;
-            z-index: 100;
-        }
-        [data-tip]:hover::after {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-4px);
-        }
+
+        /* Font preference classes - excluding FontAwesome icons */
+        .font-kalpurush *:not(i):not([class*="fa-"]) { font-family: 'Kalpurush', 'Noto Sans Bengali', sans-serif !important; }
+        .font-noto-bengali *:not(i):not([class*="fa-"]) { font-family: 'Noto Sans Bengali', 'Kalpurush', sans-serif !important; }
+        .font-outfit *:not(i):not([class*="fa-"]) { font-family: 'Outfit', sans-serif !important; }
 
         @supports (height: 100dvh) {
             .h-dvh { height: 100dvh; }
@@ -255,6 +154,14 @@
     </style>
 </head>
 <body id="app-body" class="theme-midnight flex items-center justify-center p-0 sm:p-2 md:p-3">
+
+    <!-- Skeleton Loader -->
+    <div id="skeleton-loader" class="fixed inset-0 z-[100] bg-[#090d16] flex items-center justify-center transition-opacity duration-500">
+        <div class="flex flex-col items-center gap-4">
+            <div class="w-20 h-20 bg-indigo-500/20 rounded-3xl animate-pulse"></div>
+            <div class="h-4 w-32 bg-slate-800 rounded animate-pulse"></div>
+        </div>
+    </div>
 
     <!-- Toast Banner -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
@@ -324,19 +231,15 @@
     </div>
 
     <!-- MAIN INTERFACE CORE -->
-    <div id="main-app" class="flex w-full max-w-7xl h-[95vh] h-[95dvh] max-h-[95vh] max-h-[95dvh] rounded-2xl overflow-hidden glass-panel border-white/5 z-20">
+    <div id="main-app" class="flex w-full h-screen h-[100dvh] overflow-hidden z-20">
 
         <!-- ========== LEFT WORKSPACE: Directory, Chats & Group Setup ========== -->
         <aside id="sidebar" class="w-full sm:w-80 md:w-96 flex flex-col border-r border-white/5 flex-shrink-0 transition-all z-30 select-none bg-[#090d16]/30 min-h-0">
             <!-- App Header Identity -->
             <div class="p-4 sm:p-5 flex items-center justify-between border-b border-white/5">
-                <div class="flex items-center gap-3">
-                    <!-- Modern SVG Logo -->
-                    <div id="my-avatar-view" class="w-10 h-10 rounded-xl overflow-hidden ring-1 ring-indigo-500/40 flex items-center justify-center" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);">
-                        <svg viewBox="0 0 24 24" class="w-5 h-5 text-white" fill="currentColor">
-                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                            <path d="M7 9h10v2H7zm0-3h10v2H7z" opacity="0.7"/>
-                        </svg>
+                <div class="flex items-center gap-3 cursor-pointer" onclick="openProfilePanel()">
+                    <div id="my-avatar-view" class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 overflow-hidden ring-1 ring-indigo-500/40">
+                        <i class="fa-solid fa-user"></i>
                     </div>
                     <div>
                         <h1 id="my-profile-name" class="text-sm font-bold text-white leading-tight">Anonymous</h1>
@@ -347,16 +250,11 @@
                 </div>
                 <!-- Mini quick actions -->
                 <div class="flex gap-1.5 items-center">
-                    <!-- E2E Encryption Toggle -->
-                    <button onclick="toggleE2E()" id="e2e-btn" title="End-to-End Encryption" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20">
-                        <i class="fa-solid fa-shield-halved text-xs"></i>
-                        <span id="e2e-label">E2E ON</span>
+                    <button onclick="event.stopPropagation(); openProfilePanel()" class="p-2 glass-btn rounded-xl hover:text-indigo-400 text-slate-400 transition cursor-pointer text-xs" title="My Profile">
+                        <i class="fa-solid fa-user-pen"></i>
                     </button>
-                    <button onclick="toggleThemeMenu()" class="p-2 glass-btn rounded-xl hover:text-indigo-400 text-slate-400 transition cursor-pointer text-xs" title="Themes">
-                        <i class="fa-solid fa-palette"></i>
-                    </button>
-                    <button onclick="signOut()" class="p-2 glass-btn rounded-xl hover:text-red-400 text-slate-400 transition cursor-pointer text-xs" title="Sign Out">
-                        <i class="fa-solid fa-right-from-bracket"></i>
+                    <button onclick="event.stopPropagation(); openAppSettings()" class="p-2 glass-btn rounded-xl hover:text-indigo-400 text-slate-400 transition cursor-pointer text-xs" title="App Settings">
+                        <i class="fa-solid fa-gear"></i>
                     </button>
                 </div>
             </div>
@@ -461,11 +359,16 @@
                     <button onclick="showToast('Cloud direct call established', 'info')" class="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl cursor-pointer" title="Video Session">
                         <i class="fa-solid fa-video text-xs"></i>
                     </button>
-                    <button onclick="openDeleteModal('thread', null)" class="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-500/5 rounded-xl cursor-pointer" title="Purge Conversation">
-                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    <button onclick="openAppSettings()" class="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl cursor-pointer" title="Chat Settings">
+                        <i class="fa-solid fa-circle-info text-xs"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- Chat Settings Panel -->
+            <!-- (Settings & Profile panels moved to global top level for instant display) -->
+
+            <!-- (Profile panel moved to global top level for instant display) -->
 
             <!-- Direct Message Scrolling Node - scrolls only when content overflows -->
             <div id="hub-messages" class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3 select-text relative min-h-0 scroll-messages">
@@ -617,17 +520,214 @@
         </div>
     </div>
 
-    <!-- THEME SETTINGS POPUP MENU -->
-    <div id="theme-menu" class="hidden fixed top-20 right-6 z-50 bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl p-3 flex flex-col gap-1.5 animate-slide">
-        <button onclick="changeTheme('theme-midnight')" class="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl text-xs text-slate-300 cursor-pointer w-full text-left">
-            <span class="w-3.5 h-3.5 rounded-full bg-indigo-500 border border-indigo-400"></span> Indigo Midnight
-        </button>
-        <button onclick="changeTheme('theme-aurora')" class="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl text-xs text-slate-300 cursor-pointer w-full text-left">
-            <span class="w-3.5 h-3.5 rounded-full bg-teal-500 border border-teal-400"></span> Oceanic Aurora
-        </button>
-        <button onclick="changeTheme('theme-sunset')" class="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl text-xs text-slate-300 cursor-pointer w-full text-left">
-            <span class="w-3.5 h-3.5 rounded-full bg-rose-500 border border-rose-400"></span> Vibrant Sunset
-        </button>
+    <!-- ========== GLOBAL APP SETTINGS PANEL (Top-level so it always shows instantly) ========== -->
+    <div id="app-settings-overlay" class="hidden fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm" onclick="closeAppSettings()"></div>
+    <div id="app-settings-panel" class="fixed top-0 right-0 h-full w-full sm:w-96 bg-[#0a0f1c] border-l border-white/10 z-[56] overflow-y-auto transition-transform duration-300" style="transform: translateX(100%);">
+        <div class="flex items-center justify-between p-5 border-b border-white/10 sticky top-0 bg-[#0a0f1c] z-10">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-gear text-indigo-400"></i> Settings</h3>
+            <button onclick="closeAppSettings()" class="text-slate-400 hover:text-white cursor-pointer p-2 rounded-lg hover:bg-white/5">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 flex flex-col gap-6">
+            <!-- Color Theme Preference -->
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Color Theme</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="changeTheme('theme-midnight')" id="theme-btn-midnight" class="p-3 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-xl text-white text-xs font-bold hover:scale-105 transition shadow-lg cursor-pointer ring-2 ring-white/60 ring-offset-2 ring-offset-[#0a0f1c]">
+                        <i class="fa-solid fa-moon mb-1 block"></i> Midnight
+                    </button>
+                    <button onclick="changeTheme('theme-aurora')" id="theme-btn-aurora" class="p-3 bg-gradient-to-br from-teal-600 to-cyan-700 rounded-xl text-white text-xs font-bold hover:scale-105 transition shadow-lg cursor-pointer opacity-60">
+                        <i class="fa-solid fa-water mb-1 block"></i> Aurora
+                    </button>
+                    <button onclick="changeTheme('theme-sunset')" id="theme-btn-sunset" class="p-3 bg-gradient-to-br from-rose-600 to-orange-600 rounded-xl text-white text-xs font-bold hover:scale-105 transition shadow-lg cursor-pointer opacity-60">
+                        <i class="fa-solid fa-sun mb-1 block"></i> Sunset
+                    </button>
+                </div>
+            </div>
+
+            <!-- E2E Encryption Toggle -->
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Security</label>
+                <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">End-to-End Encryption</p>
+                            <p id="e2e-status-text" class="text-[10px] text-emerald-400">Currently active</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleE2E()" id="e2e-btn" title="Toggle E2E" class="relative w-12 h-6 bg-emerald-500 rounded-full cursor-pointer transition-all">
+                        <span id="e2e-toggle-knob" class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full transition-all"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Size -->
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Message Text Size</label>
+                <div class="flex gap-2">
+                    <button onclick="setTextSize('small')" id="size-btn-small" class="size-opt flex-1 py-2.5 border rounded-lg cursor-pointer transition-all duration-200 bg-white/5 border-white/10 text-slate-300"><span class="text-xs">A-</span></button>
+                    <button onclick="setTextSize('normal')" id="size-btn-normal" class="size-opt flex-1 py-2.5 border rounded-lg cursor-pointer transition-all duration-200 bg-indigo-500/20 border-indigo-500/30 text-indigo-300 font-bold ring-2 ring-indigo-500/40"><span class="text-sm">A</span></button>
+                    <button onclick="setTextSize('large')" id="size-btn-large" class="size-opt flex-1 py-2.5 border rounded-lg cursor-pointer transition-all duration-200 bg-white/5 border-white/10 text-slate-300"><span class="text-base">A+</span></button>
+                    <button onclick="setTextSize('xl')" id="size-btn-xl" class="size-opt flex-1 py-2.5 border rounded-lg cursor-pointer transition-all duration-200 bg-white/5 border-white/10 text-slate-300"><span class="text-lg">A++</span></button>
+                </div>
+            </div>
+
+            <!-- Bangla Font Preference -->
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Font Preference</label>
+                <div class="flex flex-col gap-2">
+                    <button onclick="setFont('outfit')" id="font-btn-outfit" class="w-full py-2.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-between px-4">
+                        <span>Outfit (Default)</span>
+                        <i class="fa-solid fa-check text-indigo-400"></i>
+                    </button>
+                    <button onclick="setFont('kalpurush')" id="font-btn-kalpurush" class="w-full py-2.5 bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 rounded-xl text-xs cursor-pointer transition flex items-center justify-between px-4">
+                        <span class="text-sm font-kalpurush">কালপুরুষ (Kalpurush)</span>
+                        <i class="fa-solid fa-check text-indigo-400 hidden"></i>
+                    </button>
+                    <button onclick="setFont('noto-bengali')" id="font-btn-noto-bengali" class="w-full py-2.5 bg-white/5 text-slate-300 border border-white/10 hover:bg-white/10 rounded-xl text-xs cursor-pointer transition flex items-center justify-between px-4">
+                        <span class="text-sm font-noto-bengali">নোটো সানস বাংলা</span>
+                        <i class="fa-solid fa-check text-indigo-400 hidden"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Push Notifications -->
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Notifications</label>
+                <button onclick="requestNotificationPermission()" id="notif-btn" class="w-full py-3 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-bell"></i> Enable Push Notifications
+                </button>
+            </div>
+
+            <!-- Sign Out -->
+            <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Account</label>
+                <button onclick="signOut()" class="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                </button>
+            </div>
+
+            <!-- Info -->
+            <div class="text-center text-xs text-slate-500 pt-4 border-t border-white/5">
+                <p class="font-bold text-slate-400">NexChat v2.0</p>
+                <p class="mt-1">Secure peer-to-peer messaging</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== GLOBAL PROFILE EDIT PANEL (Top-level so it shows instantly) ========== -->
+    <div id="profile-panel" class="hidden fixed inset-0 z-[55] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-slide" onclick="closeProfilePanel()">
+        <style>
+            #profile-panel-inner::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+            #profile-panel-inner { -ms-overflow-style: none; scrollbar-width: none; }
+        </style>
+        <div class="bg-[#0a0f1c] sm:rounded-2xl rounded-t-2xl border border-white/10 w-full sm:max-w-md max-h-[90vh] overflow-y-auto transition-all duration-300" id="profile-panel-inner" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="relative h-32 bg-gradient-to-br from-indigo-600 to-fuchsia-600 flex items-end justify-center p-6">
+                <div class="absolute inset-0 bg-black/20"></div>
+                <button onclick="closeProfilePanel()" class="absolute top-4 right-4 text-white/80 hover:text-white cursor-pointer z-10 p-2 rounded-lg hover:bg-white/10">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <h2 class="text-lg font-bold text-white z-10">Edit Profile</h2>
+            </div>
+
+            <!-- Avatar Section — Redesigned -->
+            <div class="flex flex-col items-center -mt-14 relative z-10 px-6">
+                <div class="relative group">
+                    <!-- Main avatar -->
+                    <div id="profile-edit-avatar" class="w-28 h-28 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 border-4 border-[#0a0f1c] flex items-center justify-center text-indigo-400 text-3xl font-bold overflow-hidden shadow-2xl shadow-indigo-500/20 ring-2 ring-indigo-500/30">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <!-- Camera overlay on hover/tap -->
+                    <div onclick="triggerProfileAvatarUpload()" class="absolute inset-0 rounded-3xl bg-black/50 opacity-0 group-hover:opacity-100 active:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity duration-200">
+                        <i class="fa-solid fa-camera text-white text-lg mb-1"></i>
+                        <span class="text-white text-[9px] font-bold">Change</span>
+                    </div>
+                    <!-- Online indicator -->
+                    <span class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-[3px] border-[#0a0f1c] rounded-full"></span>
+                    <input type="file" id="profile-avatar-input" accept="image/*" class="hidden" onchange="handleProfileAvatarUpload(event)">
+                </div>
+                <!-- Quick actions under avatar -->
+                <div class="flex gap-2 mt-3">
+                    <button onclick="triggerProfileAvatarUpload()" class="px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-300 rounded-lg text-[10px] font-bold cursor-pointer transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-up-from-bracket text-[9px]"></i> Upload Photo
+                    </button>
+                    <button onclick="removeProfileAvatar()" class="px-3 py-1.5 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg text-[10px] font-bold cursor-pointer transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-trash text-[9px]"></i> Remove
+                    </button>
+                </div>
+            </div>
+
+            <!-- Edit Fields -->
+            <div class="p-6 flex flex-col gap-5">
+                <!-- Name -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2">Display Name</label>
+                    <input id="profile-edit-name" type="text" placeholder="Your name" class="w-full bg-white/5 border border-white/10 focus:border-indigo-500/40 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all">
+                </div>
+
+                <!-- Bio -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2">Bio (About Me)</label>
+                    <textarea id="profile-edit-bio" rows="2" placeholder="Tell others about yourself..." class="w-full bg-white/5 border border-white/10 focus:border-indigo-500/40 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all resize-none"></textarea>
+                </div>
+
+                <!-- Phone -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2">Phone (Optional)</label>
+                    <input id="profile-edit-phone" type="tel" placeholder="+880..." class="w-full bg-white/5 border border-white/10 focus:border-indigo-500/40 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all">
+                </div>
+
+                <!-- Email (read-only) -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2 flex items-center gap-1.5">
+                        Email <i class="fa-solid fa-lock text-[10px] text-slate-500"></i> <span class="normal-case text-slate-500 font-normal">(cannot be changed)</span>
+                    </label>
+                    <div class="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-sm text-slate-500 cursor-not-allowed">
+                        <span id="profile-edit-email" class="truncate block"></span>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2">My Status</label>
+                    <div class="flex gap-2">
+                        <button onclick="setProfileStatus('online')" id="status-btn-online" class="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span> Online
+                        </button>
+                        <button onclick="setProfileStatus('away')" id="status-btn-away" class="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Away
+                        </button>
+                        <button onclick="setProfileStatus('busy')" id="status-btn-busy" class="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs text-slate-300 cursor-pointer transition flex items-center justify-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span> Busy
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Peer ID Display -->
+                <div>
+                    <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-2">Permanent Peer ID</label>
+                    <div class="flex items-center gap-2">
+                        <code id="profile-edit-peer" class="flex-1 text-xs font-mono text-indigo-300 truncate bg-white/5 px-3 py-2 rounded-xl border border-white/10 select-all"></code>
+                        <button onclick="copyMyId()" class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white cursor-pointer transition" title="Copy">
+                            <i class="fa-solid fa-copy text-xs"></i>
+                        </button>
+                        <button onclick="shareMyId()" class="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white cursor-pointer transition" title="Share">
+                            <i class="fa-solid fa-share-nodes text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button onclick="saveProfileChanges()" class="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-fuchsia-600 hover:from-indigo-400 hover:to-fuchsia-500 rounded-xl text-white font-bold text-sm tracking-wide shadow-lg shadow-indigo-500/20 cursor-pointer transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> Save Changes
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- ========== JAVASCRIPT CORE CODE INTEGRATIONS ========== -->
@@ -649,13 +749,54 @@
         let activeThreadId = null;
         let currentAttachment = null;
         let pollingInterval = null;
+        let realtimeChannels = [];
+        let backgroundSyncInterval = null;
 
         // Window Startup Integration
         window.onload = async () => {
+            // Register Service Worker and automatically trigger update on reload
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').then((reg) => {
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        if (newWorker) {
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Worker was updated, reload to apply new version
+                                    window.location.reload();
+                                }
+                            });
+                        }
+                    });
+                }).catch(console.error);
+
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    window.location.reload();
+                });
+            }
+
             // Setup Supabase first
             _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            loadUserProfile();
+            await loadUserProfile();
+            
+            // Load unread state
+            loadUnreadState();
+            
+            // Initialize known message IDs
+            Object.keys(friends).forEach(fid => {
+                friends[fid].messages.forEach(m => _lastKnownMsgIds.add(m.id));
+            });
+            Object.keys(groups).forEach(gid => {
+                groups[gid].messages.forEach(m => _lastKnownMsgIds.add(m.id));
+            });
+            
+            // Sync notification button state
+            syncNotificationButtonState();
+            
+            // Fade out skeleton
+            document.getElementById('skeleton-loader').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('skeleton-loader').classList.add('hidden'), 500);
 
             // Setup real-time dynamic sizing for textarea inputs
             const msgInput = document.getElementById('msg-input');
@@ -664,49 +805,15 @@
                 this.style.height = Math.min(this.scrollHeight, 120) + 'px';
             });
 
-            // Refresh message sync continuously
+            // Light fallback sync only; primary updates come from Supabase Realtime
             pollingInterval = setInterval(() => {
                 syncDataQueue();
-            }, 5500);
-            
-            // Protection Layer Implementation
-            // Prevent Right Clicks (Blocks downloading)
-            document.addEventListener('contextmenu', e => e.preventDefault());
-            
-            // Prevent Drag and Drop actions
-            document.addEventListener('dragstart', e => e.preventDefault());
-            
-            // Blur out screen content when focus leaves window (screenshot/snipping deterrent)
-            const mainAppShell = document.getElementById('main-app');
-            window.addEventListener('blur', () => {
-                if(mainAppShell) mainAppShell.classList.add('secure-blur');
-            });
-            window.addEventListener('focus', () => {
-                if(mainAppShell) mainAppShell.classList.remove('secure-blur');
-            });
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    if(mainAppShell) mainAppShell.classList.add('secure-blur');
-                } else {
-                    if(mainAppShell) mainAppShell.classList.remove('secure-blur');
-                }
-            });
+            }, 20000);
 
-            // Prevent save/print commands
-            document.addEventListener('keydown', e => {
-                // Blocks Ctrl+S, Ctrl+P, Ctrl+U, Ctrl+Shift+I (F12)
-                if (e.ctrlKey && (e.key === 's' || e.key === 'p' || e.key === 'u' || e.key === 'S' || e.key === 'P' || e.key === 'U')) {
-                    e.preventDefault();
-                    showToast('Action restricted for security.', 'error');
-                }
-                // Check for PrintScreen
-                if (e.key === 'PrintScreen' || e.keyCode === 44) {
-                    e.preventDefault();
-                    if(mainAppShell) mainAppShell.classList.add('secure-blur');
-                    showToast('Screenshots discouraged.', 'error');
-                    notifyScreenshotTaken();
-                }
-            });
+            // Background fallback for edit/delete consistency
+            backgroundSyncInterval = setInterval(() => {
+                if (myProfile.permanentPeerId) syncDataQueue();
+            }, 30000);
         };
 
         // ────────── Profile Registration & Supabase State ──────────
@@ -718,7 +825,11 @@
                     document.getElementById('signup-overlay').classList.add('hidden');
                     applyProfileToUI();
                     initPeerJS();
-                    syncDataQueue();
+                    const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
+                    setTextSize(savedSize);
+                    await updatePresenceStatus(true);
+                    await syncDataQueue();
+                    setupRealtimeSubscriptions();
                 } else {
                     document.getElementById('signup-overlay').classList.remove('hidden');
                     switchAuthMode('login');
@@ -814,7 +925,7 @@
             return btoa(unescape(encodeURIComponent(value)));
         }
 
-        function completeProfileSession(profile) {
+        async function completeProfileSession(profile) {
             myProfile.permanentPeerId = profile.peer_id;
             myProfile.name = profile.name;
             myProfile.avatar = profile.avatar_url || '';
@@ -822,7 +933,11 @@
             document.getElementById('signup-overlay').classList.add('hidden');
             applyProfileToUI();
             initPeerJS();
-            syncDataQueue();
+            const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
+            setTextSize(savedSize);
+            await updatePresenceStatus(true);
+            await syncDataQueue();
+            setupRealtimeSubscriptions();
         }
 
         async function processAuth() {
@@ -876,7 +991,7 @@
                     }]).select().single();
 
                     if (error) throw error;
-                    completeProfileSession(data);
+                    await completeProfileSession(data);
                     showToast('Profile created. No email confirmation needed.', 'info');
                 } else {
                     const { data, error } = await _supabase
@@ -897,7 +1012,7 @@
                         return;
                     }
 
-                    completeProfileSession(data);
+                    await completeProfileSession(data);
                     showToast('Logged in successfully.', 'info');
                 }
             } catch (err) {
@@ -1064,6 +1179,200 @@
             }
         }
 
+        // ────────── Supabase Realtime Engine ──────────
+        function teardownRealtimeSubscriptions() {
+            realtimeChannels.forEach(ch => {
+                try { _supabase.removeChannel(ch); } catch (e) {}
+            });
+            realtimeChannels = [];
+        }
+
+        function setupRealtimeSubscriptions() {
+            if (!_supabase || !myProfile.permanentPeerId) return;
+            teardownRealtimeSubscriptions();
+
+            const messagesChannel = _supabase
+                .channel('nexchat-messages-' + myProfile.permanentPeerId)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+                    handleRealtimeMessageChange(payload);
+                })
+                .subscribe();
+
+            const profilesChannel = _supabase
+                .channel('nexchat-profiles-' + myProfile.permanentPeerId)
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, (payload) => {
+                    handleRealtimeProfileChange(payload);
+                })
+                .subscribe();
+
+            const typingChannel = _supabase
+                .channel('nexchat-typing-' + myProfile.permanentPeerId)
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'typing_events' }, (payload) => {
+                    handleRealtimeTypingChange(payload);
+                })
+                .subscribe();
+
+            realtimeChannels.push(messagesChannel, profilesChannel, typingChannel);
+        }
+
+        function isRelevantMessageRow(row) {
+            if (!row) return false;
+            if (row.sender_id === myProfile.permanentPeerId || row.recipient_id === myProfile.permanentPeerId) return true;
+            if (row.group_id && groups[row.group_id]) return true;
+            return false;
+        }
+
+        function getThreadIdFromRow(row) {
+            if (row.group_id) return row.group_id;
+            return row.sender_id === myProfile.permanentPeerId ? row.recipient_id : row.sender_id;
+        }
+
+        function ensureFriendThread(peerId, senderName = 'Friend') {
+            if (!peerId) return;
+            if (!friends[peerId]) {
+                friends[peerId] = {
+                    name: senderName || 'Friend',
+                    avatar: '',
+                    online: true,
+                    messages: []
+                };
+            }
+        }
+
+        function insertRealtimeMessageObject(targetStore, row) {
+            const exists = targetStore.find(m => m.id === row.id);
+            if (exists) return false;
+            targetStore.push({
+                id: row.id,
+                senderId: row.sender_id,
+                senderName: row.sender_name,
+                text: row.text,
+                fileData: row.file_data,
+                fileName: row.file_name,
+                fileSize: row.file_size,
+                type: row.type,
+                status: row.status || 'delivered',
+                timestamp: row.timestamp
+            });
+            return true;
+        }
+
+        function handleRealtimeMessageChange(payload) {
+            const row = payload.new || payload.old;
+            if (!isRelevantMessageRow(row)) return;
+
+            const threadId = getThreadIdFromRow(row);
+            const isGroup = !!row.group_id;
+            let changed = false;
+
+            if (payload.eventType === 'INSERT') {
+                if (isGroup) {
+                    if (!groups[row.group_id]) {
+                        groups[row.group_id] = { name: 'Group', hostId: '', members: [], messages: [] };
+                    }
+                    changed = insertRealtimeMessageObject(groups[row.group_id].messages, row);
+                } else {
+                    ensureFriendThread(threadId, row.sender_name);
+                    changed = insertRealtimeMessageObject(friends[threadId].messages, row);
+                }
+
+                if (changed && row.sender_id !== myProfile.permanentPeerId) {
+                    if (threadId !== activeThreadId) {
+                        if (!_unreadThreads[threadId]) _unreadThreads[threadId] = '';
+                        localStorage.setItem('nexchat_unread', JSON.stringify(_unreadThreads));
+                        if (localStorage.getItem('nexchat_notif_enabled') === 'true') {
+                            let body = row.text || '';
+                            if (row.type === 'image') body = '📷 Sent a photo';
+                            if (row.type === 'document') body = '📄 Sent a document';
+                            if (row.type === 'deleted') body = 'Message deleted';
+                            sendLocalNotification(row.sender_name || 'NexChat', body || 'New message');
+                        }
+                    } else {
+                        markMessagesAsSeen(threadId);
+                        markThreadRead(threadId);
+                    }
+                }
+            }
+
+            if (payload.eventType === 'UPDATE') {
+                const store = isGroup ? groups[row.group_id]?.messages : friends[threadId]?.messages;
+                if (store) {
+                    const msg = store.find(m => m.id === row.id);
+                    if (msg) {
+                        msg.text = row.text;
+                        msg.fileData = row.file_data;
+                        msg.fileName = row.file_name;
+                        msg.fileSize = row.file_size;
+                        msg.type = row.type;
+                        msg.status = row.status || msg.status;
+                        changed = true;
+                    }
+                }
+            }
+
+            if (payload.eventType === 'DELETE') {
+                const store = isGroup ? groups[row.group_id]?.messages : friends[threadId]?.messages;
+                if (store) {
+                    const idx = store.findIndex(m => m.id === row.id);
+                    if (idx !== -1) {
+                        store.splice(idx, 1);
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed) {
+                enrichFriendProfile(threadId);
+                renderThreadList();
+                if (activeThreadId === threadId) renderMessages();
+            }
+        }
+
+        function handleRealtimeProfileChange(payload) {
+            const row = payload.new;
+            if (!row) return;
+            if (row.peer_id === myProfile.permanentPeerId) return;
+            if (friends[row.peer_id]) {
+                friends[row.peer_id].name = row.name || friends[row.peer_id].name;
+                friends[row.peer_id].avatar = row.avatar_url || friends[row.peer_id].avatar;
+                friends[row.peer_id].online = !!row.is_online;
+                renderThreadList();
+                if (activeThreadId === row.peer_id) {
+                    const subtitle = document.getElementById('active-subtitle');
+                    const statusDot = document.getElementById('active-status-dot');
+                    if (row.is_online) {
+                        subtitle.textContent = 'Online';
+                        statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-green-500 rounded-full';
+                    } else {
+                        const minsAgo = Math.floor((Date.now() - new Date(row.last_seen).getTime()) / 60000);
+                        subtitle.textContent = minsAgo <= 0 ? 'Inactive' : `Last seen ${minsAgo}m ago`;
+                        statusDot.className = 'absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-slate-500 rounded-full';
+                    }
+                    const avatarBox = document.getElementById('active-avatar-box');
+                    avatarBox.innerHTML = row.avatar_url ? `<img src="${row.avatar_url}" class="w-full h-full object-cover">` : (row.name || '?').charAt(0).toUpperCase();
+                    document.getElementById('active-name').textContent = row.name || friends[row.peer_id].name;
+                }
+            }
+        }
+
+        function handleRealtimeTypingChange(payload) {
+            const row = payload.new;
+            if (!row || row.user_id === myProfile.permanentPeerId) return;
+            if (row.thread_id !== activeThreadId) return;
+            const subtitle = document.getElementById('active-subtitle');
+            if (row.is_typing) {
+                subtitle.innerHTML = '<span class="text-indigo-400 animate-pulse">typing...</span>';
+                clearTimeout(window.__typingUiTimer);
+                window.__typingUiTimer = setTimeout(() => {
+                    const f = friends[activeThreadId];
+                    subtitle.textContent = f?.online ? 'Online' : 'Inactive';
+                }, 2500);
+            } else {
+                const f = friends[activeThreadId];
+                subtitle.textContent = f?.online ? 'Online' : 'Inactive';
+            }
+        }
+
         // ────────── Global Data Sync Queue Pipeline (Poller/Broadcaster) ──────────
         // Tracks previous message counts to avoid unnecessary DOM re-renders (prevents blinking)
         let _lastMessageCounts = {};
@@ -1221,6 +1530,9 @@
                     if (activeThreadId) {
                         renderMessages();
                     }
+                    
+                    // Check for new incoming messages and fire notifications
+                    checkForNewIncomingMessages();
                 }
             } catch (e) {
                 console.error(e);
@@ -1304,50 +1616,17 @@
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 submitMessage();
+            } else {
+                // Typing indicator
+                clearTimeout(typingTimeout);
+                sendTypingIndicator(true);
+                typingTimeout = setTimeout(() => {
+                    sendTypingIndicator(false);
+                }, 2000);
             }
         }
 
-        let _lastScreenshotNoticeAt = 0;
-        async function notifyScreenshotTaken() {
-            if (!activeThreadId || !_supabase || !myProfile.permanentPeerId) return;
-            const nowMs = Date.now();
-            if (nowMs - _lastScreenshotNoticeAt < 5000) return;
-            _lastScreenshotNoticeAt = nowMs;
-
-            const isGroup = !!groups[activeThreadId];
-            const noticeText = `${myProfile.name} took a screenshot.`;
-            const msgData = {
-                sender_id: myProfile.permanentPeerId,
-                sender_name: myProfile.name,
-                text: noticeText,
-                type: 'system',
-                status: 'seen',
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-            if (isGroup) msgData.group_id = activeThreadId;
-            else msgData.recipient_id = activeThreadId;
-
-            try {
-                const { data, error } = await _supabase.from('messages').insert([msgData]).select();
-                if (error) throw error;
-                const saved = data && data[0];
-                const localMsg = {
-                    id: saved?.id || 'ss_' + nowMs,
-                    senderId: msgData.sender_id,
-                    senderName: msgData.sender_name,
-                    text: noticeText,
-                    type: 'system',
-                    status: 'seen',
-                    timestamp: msgData.timestamp
-                };
-                if (isGroup) groups[activeThreadId].messages.push(localMsg);
-                else friends[activeThreadId].messages.push(localMsg);
-                renderMessages();
-                renderThreadList();
-            } catch (e) {
-                console.error('Screenshot notice failed:', e);
-            }
-        }
+// Screenshot notice functionality removed
 
         // ────────── Thread Selection Rendering Logic ──────────
         function openThread(id) {
@@ -1397,6 +1676,8 @@
 
             // Mark all received messages in this thread as "seen"
             markMessagesAsSeen(id);
+            markThreadRead(id);
+            renderThreadList();
 
             // Always show chat hub when thread is opened (mobile and desktop)
             const chatHub = document.getElementById('chat-hub');
@@ -1480,12 +1761,38 @@
 
             // Render Directory Tab
             if (activeTab === 'directory') {
-                listEl.innerHTML = `
-                    <div class="text-center text-slate-500 py-12 px-6 text-xs leading-relaxed">
-                        <i class="fa-solid fa-user-lock text-3xl opacity-40 mb-3 block"></i>
-                        <p class="font-bold text-slate-300 mb-1">Profiles are private.</p>
-                        <p>Ask your friend for their email ID and paste it in the Connect box above.</p>
-                    </div>`;
+                const fIds = Object.keys(friends);
+                if (fIds.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="text-center text-slate-500 py-12 px-6 text-xs leading-relaxed">
+                            <i class="fa-solid fa-user-group text-3xl opacity-40 mb-3 block"></i>
+                            <p class="font-bold text-slate-300 mb-1">No people connected yet</p>
+                            <p>Share your email/Peer ID above to connect with friends.</p>
+                        </div>`;
+                    return;
+                }
+
+                fIds.forEach(fid => {
+                    const f = friends[fid];
+                    const div = document.createElement('div');
+                    div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition border border-transparent select-none`;
+                    div.onclick = () => {
+                        switchSidebarTab('chats');
+                        openThread(fid);
+                    };
+                    div.innerHTML = `
+                        <div class="relative flex-shrink-0">
+                            <div class="w-10 h-10 bg-indigo-500/10 text-indigo-400 font-bold border border-indigo-500/20 rounded-xl flex items-center justify-center overflow-hidden">
+                                ${f.avatar ? `<img src="${f.avatar}" class="w-full h-full object-cover">` : f.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] ${f.online ? 'bg-green-500' : 'bg-slate-500'} rounded-full"></span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-slate-100 truncate">${f.name}</h4>
+                            <p class="text-[10px] text-indigo-400 truncate mt-0.5">${fid}</p>
+                        </div>`;
+                    listEl.appendChild(div);
+                });
                 return;
             }
 
@@ -1502,68 +1809,108 @@
                 return;
             }
 
-            // Render friends
+            // Combine both friends and groups into a sortable array based on latest activity
+            let combinedThreads = [];
+
             fIds.forEach(fid => {
                 const f = friends[fid];
                 const lastMsg = f.messages[f.messages.length - 1];
-                let preview = 'No messages synced yet';
-                if (lastMsg) {
-                    if (lastMsg.type === 'image') preview = '📷 Compressed Photo';
-                    else if (lastMsg.type === 'document') preview = '📄 ' + lastMsg.fileName;
-                    else preview = lastMsg.text || '';
-                }
-                const isActive = fid === activeThreadId;
-
-                const div = document.createElement('div');
-                div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition select-none ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : 'border border-transparent'}`;
-                div.onclick = () => openThread(fid);
-                div.innerHTML = `
-                    <div class="relative flex-shrink-0">
-                        <div class="w-11 h-11 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center text-sm font-bold border border-indigo-500/20 overflow-hidden">
-                            ${f.avatar ? `<img src="${f.avatar}" class="w-full h-full object-cover">` : f.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] ${f.online ? 'bg-green-500' : 'bg-slate-500'} rounded-full"></span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-baseline">
-                            <h4 class="text-xs font-bold text-slate-100 truncate">${f.name}</h4>
-                            <span class="text-[9px] text-slate-500 flex-shrink-0 ml-2">${lastMsg?.timestamp || ''}</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 truncate mt-0.5">${preview}</p>
-                    </div>`;
-                listEl.appendChild(div);
+                combinedThreads.push({
+                    type: 'friend',
+                    id: fid,
+                    data: f,
+                    lastMsg: lastMsg,
+                    timeScore: lastMsg && lastMsg.timestamp ? new Date('1970/01/01 ' + lastMsg.timestamp).getTime() : 0
+                });
             });
 
-            // Render Groups
             gIds.forEach(gid => {
                 const g = groups[gid];
                 const lastMsg = g.messages[g.messages.length - 1];
-                let preview = 'No group messages yet';
-                if (lastMsg) {
-                    if (lastMsg.type === 'image') preview = '📷 Compressed Photo';
-                    else if (lastMsg.type === 'document') preview = '📄 ' + lastMsg.fileName;
-                    else preview = lastMsg.text || '';
-                }
-                const isActive = gid === activeThreadId;
+                combinedThreads.push({
+                    type: 'group',
+                    id: gid,
+                    data: g,
+                    lastMsg: lastMsg,
+                    timeScore: lastMsg && lastMsg.timestamp ? new Date('1970/01/01 ' + lastMsg.timestamp).getTime() : 0
+                });
+            });
 
-                const div = document.createElement('div');
-                div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition select-none ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : 'border border-transparent'}`;
-                div.onclick = () => openThread(gid);
-                div.innerHTML = `
-                    <div class="relative flex-shrink-0">
-                        <div class="w-11 h-11 bg-fuchsia-500/10 text-fuchsia-400 rounded-xl flex items-center justify-center text-base font-bold border border-fuchsia-500/20">
-                            <i class="fa-solid fa-user-group text-xs"></i>
+            // Sort descending: highest timeScore first (latest message up top)
+            combinedThreads.sort((a, b) => b.timeScore - a.timeScore);
+
+            combinedThreads.forEach(item => {
+                if (item.type === 'friend') {
+                    const f = item.data;
+                    const lastMsg = item.lastMsg;
+                    let preview = 'No messages synced yet';
+                    if (lastMsg) {
+                        if (lastMsg.type === 'image') preview = '📷 Compressed Photo';
+                        else if (lastMsg.type === 'document') preview = '📄 ' + lastMsg.fileName;
+                        else if (lastMsg.type === 'deleted') preview = 'This message was deleted';
+                        else preview = lastMsg.text || '';
+                    }
+                    const isActive = item.id === activeThreadId;
+                    const unreadCount = getUnreadCount(item.id);
+                    const hasUnread = unreadCount > 0;
+
+                    const div = document.createElement('div');
+                    div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition select-none ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : hasUnread ? 'bg-white/[0.03] border border-indigo-500/10' : 'border border-transparent'}`;
+                    div.onclick = () => openThread(item.id);
+                    div.innerHTML = `
+                        <div class="relative flex-shrink-0">
+                            <div class="w-11 h-11 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center text-sm font-bold border border-indigo-500/20 overflow-hidden">
+                                ${f.avatar ? `<img src="${f.avatar}" class="w-full h-full object-cover">` : f.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] ${f.online ? 'bg-green-500' : 'bg-slate-500'} rounded-full"></span>
                         </div>
-                        <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-fuchsia-500 rounded-full animate-pulse"></span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-baseline">
-                            <h4 class="text-xs font-bold text-slate-100 truncate">${g.name}</h4>
-                            <span class="text-[9px] text-slate-500 flex-shrink-0 ml-2">${lastMsg?.timestamp || ''}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-baseline">
+                                <h4 class="text-xs ${hasUnread ? 'font-extrabold text-white' : 'font-bold text-slate-100'} truncate">${f.name}</h4>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    ${hasUnread ? `<span class="w-5 h-5 bg-indigo-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">${unreadCount > 9 ? '9+' : unreadCount}</span>` : ''}
+                                    <span class="text-[9px] text-slate-500">${lastMsg?.timestamp || ''}</span>
+                                </div>
+                            </div>
+                            <p class="text-[11px] ${hasUnread ? 'text-slate-200 font-semibold' : 'text-slate-400'} truncate mt-0.5">${preview}</p>
+                        </div>`;
+                    listEl.appendChild(div);
+                } else {
+                    const g = item.data;
+                    const lastMsg = item.lastMsg;
+                    let preview = 'No group messages yet';
+                    if (lastMsg) {
+                        if (lastMsg.type === 'image') preview = '📷 Compressed Photo';
+                        else if (lastMsg.type === 'document') preview = '📄 ' + lastMsg.fileName;
+                        else if (lastMsg.type === 'deleted') preview = 'This message was deleted';
+                        else preview = lastMsg.text || '';
+                    }
+                    const isActive = item.id === activeThreadId;
+                    const unreadCount = getUnreadCount(item.id);
+                    const hasUnread = unreadCount > 0;
+
+                    const div = document.createElement('div');
+                    div.className = `flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition select-none ${isActive ? 'bg-indigo-500/10 border border-indigo-500/20' : hasUnread ? 'bg-white/[0.03] border border-fuchsia-500/10' : 'border border-transparent'}`;
+                    div.onclick = () => openThread(item.id);
+                    div.innerHTML = `
+                        <div class="relative flex-shrink-0">
+                            <div class="w-11 h-11 bg-fuchsia-500/10 text-fuchsia-400 rounded-xl flex items-center justify-center text-base font-bold border border-fuchsia-500/20">
+                                <i class="fa-solid fa-user-group text-xs"></i>
+                            </div>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-[#090e19] bg-fuchsia-500 rounded-full animate-pulse"></span>
                         </div>
-                        <p class="text-[11px] text-slate-400 truncate mt-0.5">${preview}</p>
-                    </div>`;
-                listEl.appendChild(div);
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-baseline">
+                                <h4 class="text-xs ${hasUnread ? 'font-extrabold text-white' : 'font-bold text-slate-100'} truncate">${g.name}</h4>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    ${hasUnread ? `<span class="w-5 h-5 bg-fuchsia-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">${unreadCount > 9 ? '9+' : unreadCount}</span>` : ''}
+                                    <span class="text-[9px] text-slate-500">${lastMsg?.timestamp || ''}</span>
+                                </div>
+                            </div>
+                            <p class="text-[11px] ${hasUnread ? 'text-slate-200 font-semibold' : 'text-slate-400'} truncate mt-0.5">${preview}</p>
+                        </div>`;
+                    listEl.appendChild(div);
+                }
             });
         }
 
@@ -1600,7 +1947,15 @@
 
                 const isMe = msg.senderId === myProfile.permanentPeerId;
                 const wrap = document.createElement('div');
-                wrap.className = `message-item flex ${isMe ? 'justify-end' : 'justify-start'} animate-slide mb-1`;
+                wrap.className = `message-item flex ${isMe ? 'justify-end' : 'justify-start'} animate-slide cursor-pointer`;
+                wrap.onclick = (e) => {
+                    e.stopPropagation();
+                    wrap.classList.toggle('expanded');
+                    const actions = wrap.querySelector('.message-actions');
+                    if (actions) {
+                        actions.style.opacity = wrap.classList.contains('expanded') ? '1' : '0';
+                    }
+                };
 
                 if (msg.type === 'system') {
                     wrap.className = 'message-item flex justify-center animate-slide my-2';
@@ -1879,39 +2234,126 @@
             }
         }
 
-        // ────────── Dynamic Controls UI/Helpers ──────────
-        function toggleThemeMenu() { document.getElementById('theme-menu').classList.toggle('hidden'); }
+        // ────────── App Settings Panel (Global) ──────────
+        function openAppSettings() {
+            document.getElementById('app-settings-overlay').classList.remove('hidden');
+            const panel = document.getElementById('app-settings-panel');
+            panel.style.transform = 'translateX(0)';
+            // Sync all selection states on open
+            updateE2EToggleUI();
+            syncNotificationButtonState();
+            syncSettingsSelectionStates();
+        }
+
+        function syncSettingsSelectionStates() {
+            // Sync theme selection
+            const savedTheme = localStorage.getItem('nexchat_theme') || 'theme-midnight';
+            const themeMap = { 'theme-midnight': 'midnight', 'theme-aurora': 'aurora', 'theme-sunset': 'sunset' };
+            ['midnight', 'aurora', 'sunset'].forEach(t => {
+                const btn = document.getElementById('theme-btn-' + t);
+                if (!btn) return;
+                if (themeMap[savedTheme] === t) {
+                    btn.classList.add('ring-2', 'ring-white/60', 'ring-offset-2', 'ring-offset-[#0a0f1c]');
+                    btn.classList.remove('opacity-60');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-white/60', 'ring-offset-2', 'ring-offset-[#0a0f1c]');
+                    btn.classList.add('opacity-60');
+                }
+            });
+
+            // Sync text size selection
+            const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
+            applySizeButtonStates(savedSize);
+
+            // Sync font selection
+            const savedFont = localStorage.getItem('nexchat_font') || 'outfit';
+            ['outfit', 'kalpurush', 'noto-bengali'].forEach(f => {
+                const btn = document.getElementById('font-btn-' + f);
+                if (!btn) return;
+                const icon = btn.querySelector('i.fa-check');
+                if (f === savedFont) {
+                    btn.classList.remove('bg-white/5', 'text-slate-300', 'border-white/10', 'hover:bg-white/10');
+                    btn.classList.add('bg-indigo-500/20', 'text-indigo-300', 'border-indigo-500/30');
+                    if (icon) icon.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('bg-indigo-500/20', 'text-indigo-300', 'border-indigo-500/30');
+                    btn.classList.add('bg-white/5', 'text-slate-300', 'border-white/10', 'hover:bg-white/10');
+                    if (icon) icon.classList.add('hidden');
+                }
+            });
+        }
+        function closeAppSettings() {
+            document.getElementById('app-settings-overlay').classList.add('hidden');
+            document.getElementById('app-settings-panel').style.transform = 'translateX(100%)';
+        }
+
         function changeTheme(theme) {
             document.getElementById('app-body').className = theme;
-            toggleThemeMenu();
+            localStorage.setItem('nexchat_theme', theme);
+            
+            // Highlight selected theme button
+            const themeMap = {
+                'theme-midnight': 'midnight',
+                'theme-aurora': 'aurora',
+                'theme-sunset': 'sunset'
+            };
+            ['midnight', 'aurora', 'sunset'].forEach(t => {
+                const btn = document.getElementById('theme-btn-' + t);
+                if (!btn) return;
+                if (themeMap[theme] === t) {
+                    btn.classList.add('ring-2', 'ring-white/60', 'ring-offset-2', 'ring-offset-[#0a0f1c]');
+                    btn.classList.remove('opacity-60');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-white/60', 'ring-offset-2', 'ring-offset-[#0a0f1c]');
+                    btn.classList.add('opacity-60');
+                }
+            });
         }
+
+        // Backwards-compat (in case any old code still calls it)
+        function toggleThemeMenu() { openAppSettings(); }
+        function toggleChatSettings() { openAppSettings(); }
 
         // ────────── End-to-End Encryption Toggle ──────────
         let e2eEnabled = true;
 
-        function toggleE2E() {
-            e2eEnabled = !e2eEnabled;
+        function updateE2EToggleUI() {
             const btn = document.getElementById('e2e-btn');
-            const label = document.getElementById('e2e-label');
+            const knob = document.getElementById('e2e-toggle-knob');
+            const statusText = document.getElementById('e2e-status-text');
             const chatBadge = document.getElementById('chat-e2e-badge');
+            if (!btn) return;
 
             if (e2eEnabled) {
-                btn.className = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20';
-                label.textContent = 'E2E ON';
+                btn.className = 'relative w-12 h-6 bg-emerald-500 rounded-full cursor-pointer transition-all';
+                knob.className = 'absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full transition-all';
+                if (statusText) {
+                    statusText.textContent = 'Currently active';
+                    statusText.className = 'text-[10px] text-emerald-400';
+                }
                 if (chatBadge) {
                     chatBadge.className = 'text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-0.5 select-none';
                     chatBadge.innerHTML = '<i class="fa-solid fa-lock text-[8px]"></i> E2E';
                 }
-                showToast('End-to-End Encryption enabled. Messages are secured.', 'info');
             } else {
-                btn.className = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-bold cursor-pointer transition-all duration-300 bg-rose-500/10 text-rose-400 border border-rose-500/25 hover:bg-rose-500/20';
-                label.textContent = 'E2E OFF';
+                btn.className = 'relative w-12 h-6 bg-slate-600 rounded-full cursor-pointer transition-all';
+                knob.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-all';
+                if (statusText) {
+                    statusText.textContent = 'Disabled — plaintext messages';
+                    statusText.className = 'text-[10px] text-rose-400';
+                }
                 if (chatBadge) {
                     chatBadge.className = 'text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-0.5 select-none';
                     chatBadge.innerHTML = '<i class="fa-solid fa-lock-open text-[8px]"></i> E2E';
                 }
-                showToast('Encryption disabled. Messages are in plaintext.', 'error');
             }
+        }
+
+        function toggleE2E() {
+            e2eEnabled = !e2eEnabled;
+            updateE2EToggleUI();
+            if (e2eEnabled) showToast('End-to-End Encryption enabled. Messages are secured.', 'info');
+            else showToast('Encryption disabled. Messages are in plaintext.', 'error');
         }
 
         function toggleAttachMenu() {
@@ -2024,11 +2466,12 @@
             if (msgIndex === -1) return;
             
             try {
+                // Hard delete from Supabase table so it's gone for both users instantly
                 await _supabase.from('messages').delete().eq('id', msgId);
                 msgs.splice(msgIndex, 1);
                 renderMessages();
                 renderThreadList();
-                showToast('Message deleted', 'info');
+                showToast('Message deleted successfully', 'info');
             } catch (e) {
                 console.error('Delete message failed:', e);
                 showToast('Failed to delete message', 'error');
@@ -2085,21 +2528,390 @@
             }
         }
 
+        // ────────── Chat Settings & Features ──────────
+        function toggleChatSettings() {
+            document.getElementById('chat-settings-panel').classList.toggle('open');
+        }
+
+        function setTextSize(size) {
+            localStorage.setItem('nexchat_textsize', size);
+            const hub = document.getElementById('chat-hub');
+            hub.classList.remove('text-size-small', 'text-size-normal', 'text-size-large', 'text-size-xl');
+            hub.classList.add('text-size-' + size);
+            applySizeButtonStates(size);
+        }
+
+        function applySizeButtonStates(size) {
+            const on = ['bg-indigo-500/20', 'border-indigo-500/30', 'text-indigo-300', 'font-bold', 'ring-2', 'ring-indigo-500/40'];
+            const off = ['bg-white/5', 'border-white/10', 'text-slate-300'];
+            
+            ['small', 'normal', 'large', 'xl'].forEach(s => {
+                const btn = document.getElementById('size-btn-' + s);
+                if (!btn) return;
+                // Strip all togglable classes first
+                [...on, ...off].forEach(c => btn.classList.remove(c));
+                if (s === size) {
+                    on.forEach(c => btn.classList.add(c));
+                } else {
+                    off.forEach(c => btn.classList.add(c));
+                }
+            });
+        }
+
+        // ────────── Font Preference ──────────
+        function setFont(font) {
+            localStorage.setItem('nexchat_font', font);
+            const body = document.getElementById('app-body');
+            body.classList.remove('font-outfit', 'font-kalpurush', 'font-noto-bengali');
+            if (font !== 'outfit') {
+                body.classList.add('font-' + font);
+            }
+            // Highlight selected font button
+            ['outfit', 'kalpurush', 'noto-bengali'].forEach(f => {
+                const btn = document.getElementById('font-btn-' + f);
+                if (!btn) return;
+                const icon = btn.querySelector('i.fa-check');
+                if (f === font) {
+                    btn.classList.remove('bg-white/5', 'text-slate-300', 'border-white/10', 'hover:bg-white/10');
+                    btn.classList.add('bg-indigo-500/20', 'text-indigo-300', 'border-indigo-500/30');
+                    if (icon) icon.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('bg-indigo-500/20', 'text-indigo-300', 'border-indigo-500/30');
+                    btn.classList.add('bg-white/5', 'text-slate-300', 'border-white/10', 'hover:bg-white/10');
+                    if (icon) icon.classList.add('hidden');
+                }
+            });
+        }
+
+        // ────────── Profile Panel ──────────
+        function openProfilePanel() {
+            const panel = document.getElementById('profile-panel');
+            panel.classList.remove('hidden');
+            panel.classList.add('flex');
+            
+            document.getElementById('profile-edit-name').value = myProfile.name || '';
+            document.getElementById('profile-edit-email').textContent = myProfile.permanentPeerId || '';
+            document.getElementById('profile-edit-peer').textContent = myProfile.permanentPeerId || '';
+            
+            const avatarDiv = document.getElementById('profile-edit-avatar');
+            if (myProfile.avatar) {
+                avatarDiv.innerHTML = `<img src="${myProfile.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                avatarDiv.innerHTML = `<i class="fa-solid fa-user"></i>`;
+            }
+        }
+
+        function closeProfilePanel() {
+            const panel = document.getElementById('profile-panel');
+            panel.classList.add('hidden');
+            panel.classList.remove('flex');
+        }
+
+        function triggerProfileAvatarUpload() {
+            document.getElementById('profile-avatar-input').click();
+        }
+
+        function handleProfileAvatarUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                myProfile.avatar = ev.target.result;
+                const avatarDiv = document.getElementById('profile-edit-avatar');
+                avatarDiv.innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover">`;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        }
+
+        function removeProfileAvatar() {
+            myProfile.avatar = '';
+            const avatarDiv = document.getElementById('profile-edit-avatar');
+            avatarDiv.innerHTML = `<i class="fa-solid fa-user"></i>`;
+        }
+
+        function setProfileStatus(status) {
+            localStorage.setItem('nexchat_status', status);
+            showToast('Status updated to ' + status, 'info');
+        }
+
+        async function saveProfileChanges() {
+            const name = document.getElementById('profile-edit-name').value.trim();
+            if (!name) {
+                showToast('Name cannot be empty', 'error');
+                return;
+            }
+
+            myProfile.name = name;
+            localStorage.setItem('nexchat_user_profile', JSON.stringify(myProfile));
+            applyProfileToUI();
+
+            try {
+                await _supabase.from('profiles').update({
+                    name: myProfile.name,
+                    avatar_url: myProfile.avatar
+                }).eq('peer_id', myProfile.permanentPeerId);
+                showToast('Profile saved successfully', 'info');
+            } catch (e) {
+                showToast('Failed to sync profile', 'error');
+            }
+
+            closeProfilePanel();
+        }
+
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                showToast('Notifications not supported in this browser', 'error');
+                return;
+            }
+            const btn = document.getElementById('notif-btn');
+            
+            try {
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    localStorage.setItem('nexchat_notif_enabled', 'true');
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Notifications Enabled';
+                    btn.className = 'w-full py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2';
+                    showToast('Push notifications enabled!', 'info');
+                    
+                    // Fire a test notification to confirm it works
+                    sendLocalNotification('NexChat', 'Notifications are now active! You\'ll be notified of new messages.');
+                } else if (permission === 'denied') {
+                    localStorage.setItem('nexchat_notif_enabled', 'false');
+                    btn.innerHTML = '<i class="fa-solid fa-bell-slash"></i> Notifications Blocked';
+                    btn.className = 'w-full py-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2';
+                    showToast('Notifications blocked. Enable in browser settings.', 'error');
+                } else {
+                    localStorage.setItem('nexchat_notif_enabled', 'false');
+                    btn.innerHTML = '<i class="fa-solid fa-bell"></i> Enable Push Notifications';
+                    btn.className = 'w-full py-3 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2';
+                    showToast('Notification permission dismissed', 'error');
+                }
+            } catch (e) {
+                console.error('Notification permission error:', e);
+                showToast('Failed to request notification permission', 'error');
+            }
+        }
+
+        function syncNotificationButtonState() {
+            const btn = document.getElementById('notif-btn');
+            if (!btn) return;
+            
+            if (!('Notification' in window)) {
+                btn.innerHTML = '<i class="fa-solid fa-bell-slash"></i> Not Supported';
+                btn.className = 'w-full py-3 bg-slate-500/20 text-slate-400 border border-slate-500/30 rounded-xl text-xs font-semibold cursor-default flex items-center justify-center gap-2';
+                return;
+            }
+            
+            const permission = Notification.permission;
+            const savedPref = localStorage.getItem('nexchat_notif_enabled');
+            
+            if (permission === 'granted') {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Notifications Enabled';
+                btn.className = 'w-full py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2';
+                if (savedPref !== 'true') localStorage.setItem('nexchat_notif_enabled', 'true');
+            } else if (permission === 'denied') {
+                btn.innerHTML = '<i class="fa-solid fa-bell-slash"></i> Notifications Blocked — Browser Settings';
+                btn.className = 'w-full py-3 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-semibold cursor-default flex items-center justify-center gap-2';
+            }
+        }
+
+        function sendLocalNotification(title, body) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            
+            try {
+                // Try service worker notification first (better for PWA)
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(reg => {
+                        reg.showNotification(title, {
+                            body: body,
+                            icon: 'logo.svg',
+                            badge: 'logo.svg',
+                            tag: 'nexchat-' + Date.now(),
+                            requireInteraction: false,
+                            vibrate: [200, 100, 200]
+                        });
+                    });
+                } else {
+                    // Fallback to direct Notification API
+                    new Notification(title, {
+                        body: body,
+                        icon: 'logo.svg',
+                        tag: 'nexchat-' + Date.now()
+                    });
+                }
+            } catch (e) {
+                console.error('Notification failed:', e);
+            }
+        }
+
+        // Track which threads have unread messages
+        let _unreadThreads = {};
+
+        function getUnreadCount(threadId) {
+            if (!threadId || !_unreadThreads[threadId]) return 0;
+            const isGroup = !!groups[threadId];
+            const msgs = isGroup ? groups[threadId]?.messages : friends[threadId]?.messages;
+            if (!msgs) return 0;
+            
+            let count = 0;
+            const lastReadId = _unreadThreads[threadId] || '';
+            let foundLastRead = false;
+            
+            for (let i = msgs.length - 1; i >= 0; i--) {
+                if (msgs[i].id === lastReadId) {
+                    foundLastRead = true;
+                    break;
+                }
+                if (msgs[i].senderId !== myProfile.permanentPeerId) {
+                    count++;
+                }
+            }
+            
+            // If we never found lastReadId, count all from others
+            if (!foundLastRead && lastReadId) {
+                count = msgs.filter(m => m.senderId !== myProfile.permanentPeerId).length;
+            }
+            
+            return count;
+        }
+
+        function markThreadRead(threadId) {
+            if (!threadId) return;
+            const isGroup = !!groups[threadId];
+            const msgs = isGroup ? groups[threadId]?.messages : friends[threadId]?.messages;
+            if (!msgs || msgs.length === 0) return;
+            
+            const lastMsg = msgs[msgs.length - 1];
+            _unreadThreads[threadId] = lastMsg.id;
+            localStorage.setItem('nexchat_unread', JSON.stringify(_unreadThreads));
+        }
+
+        function loadUnreadState() {
+            try {
+                const stored = localStorage.getItem('nexchat_unread');
+                if (stored) _unreadThreads = JSON.parse(stored);
+            } catch (e) {}
+        }
+
+        // ────────── Incoming Message Notifications ──────────
+        let _lastKnownMsgIds = new Set();
+
+        function checkForNewIncomingMessages() {
+            if (!_supabase || !myProfile.permanentPeerId) return;
+            
+            const allThreads = { ...friends, ...groups };
+            const notifEnabled = localStorage.getItem('nexchat_notif_enabled') === 'true';
+            
+            Object.keys(allThreads).forEach(tid => {
+                const isGroup = !!groups[tid];
+                const msgs = isGroup ? groups[tid]?.messages : friends[tid]?.messages;
+                if (!msgs) return;
+                
+                msgs.forEach(msg => {
+                    if (!_lastKnownMsgIds.has(msg.id) && msg.senderId !== myProfile.permanentPeerId) {
+                        _lastKnownMsgIds.add(msg.id);
+                        
+                        // If this thread is not currently open, it's unread
+                        if (tid !== activeThreadId) {
+                            if (!_unreadThreads[tid]) {
+                                _unreadThreads[tid] = '';
+                            }
+                            
+                            // Send notification
+                            if (notifEnabled) {
+                                const senderName = msg.senderName || 'Someone';
+                                let notifBody = msg.text || '';
+                                if (msg.type === 'image') notifBody = '📷 Sent a photo';
+                                if (msg.type === 'document') notifBody = '📄 Sent a document';
+                                if (msg.type === 'system') notifBody = msg.text;
+                                
+                                sendLocalNotification(senderName, notifBody);
+                            }
+                        }
+                    }
+                });
+            });
+            
+            localStorage.setItem('nexchat_unread', JSON.stringify(_unreadThreads));
+        }
+
+        async function clearCurrentChat() {
+            if (!activeThreadId) return;
+            const isGroup = !!groups[activeThreadId];
+            try {
+                if (isGroup) {
+                    await _supabase.from('messages').delete().eq('group_id', activeThreadId);
+                } else {
+                    await _supabase.from('messages').delete().eq('recipient_id', activeThreadId);
+                }
+                if (isGroup) groups[activeThreadId].messages = [];
+                else friends[activeThreadId].messages = [];
+                renderMessages();
+                renderThreadList();
+                toggleChatSettings();
+                showToast('Chat cleared from Supabase', 'info');
+            } catch (e) {
+                showToast('Failed to clear chat', 'error');
+            }
+        }
+
+        // ────────── Typing Indicator ──────────
+        let typingTimeout = null;
+        async function sendTypingIndicator(isTyping) {
+            if (!activeThreadId || !friends[activeThreadId] || !_supabase || groups[activeThreadId]) return;
+            try {
+                await _supabase.from('typing_events').upsert([{
+                    thread_id: activeThreadId,
+                    user_id: myProfile.permanentPeerId,
+                    user_name: myProfile.name,
+                    is_typing: isTyping,
+                    updated_at: new Date().toISOString()
+                }], { onConflict: 'thread_id,user_id' });
+            } catch (e) {
+                console.error('Typing indicator failed:', e);
+            }
+        }
+
+        // ────────── Presence / Online Status ──────────
+        let isAppActive = true;
+        let presenceHeartbeat = null;
+        
+        document.addEventListener('visibilitychange', () => {
+            isAppActive = !document.hidden;
+            updatePresenceStatus(isAppActive);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            updatePresenceStatus(false);
+        });
+
+        async function updatePresenceStatus(online) {
+            if (!_supabase || !myProfile.permanentPeerId) return;
+            try {
+                await _supabase.from('profiles').update({ 
+                    last_seen: new Date().toISOString(),
+                    is_online: online 
+                }).eq('peer_id', myProfile.permanentPeerId);
+            } catch (e) {
+                console.error('Presence update failed:', e);
+            }
+        }
+
+        function startPresenceHeartbeat() {
+            if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+            presenceHeartbeat = setInterval(() => {
+                if (isAppActive) updatePresenceStatus(true);
+            }, 20000);
+        }
+
+        // Realtime replaces aggressive polling for presence/message edits/deletes.
+        startPresenceHeartbeat();
+
         function showToast(msg, type) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const styling = type === 'error' 
-                ? 'border-rose-500/20 bg-rose-950/40 text-rose-300' 
-                : 'border-indigo-500/20 bg-indigo-950/40 text-indigo-200';
-            toast.className = `p-3 px-4 rounded-xl border text-xs shadow-lg animate-slide flex items-center gap-2.5 z-50 glass-panel ${styling}`;
-            toast.innerHTML = `<i class="fa-solid fa-${type === 'error' ? 'circle-exclamation' : 'circle-info'} text-sm"></i> <span>${msg}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-12px)';
-                toast.style.transition = 'all 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 3200);
+            // Toast notifications disabled
+            return;
         }
 
         // Catch general clicks
@@ -2113,19 +2925,6 @@
             if (ep && !e.target.closest('#emoji-picker') && !e.target.closest('[onclick="toggleEmojiPicker()"]')) ep.classList.add('hidden');
             if (dm && !e.target.closest('.glass-panel') && !dm.classList.contains('hidden')) closeDeleteModal();
         });
-
-        // ────────── Service Worker Registration (PWA) ──────────
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                        console.log('[PWA] Service Worker registered:', registration.scope);
-                    })
-                    .catch((error) => {
-                        console.log('[PWA] Service Worker registration failed:', error);
-                    });
-            });
-        }
     </script>
 </body>
 </html>
