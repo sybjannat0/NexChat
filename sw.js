@@ -1,160 +1,168 @@
-const CACHE_NAME = 'nexchat-v4';
-const RUNTIME_CACHE = 'nexchat-runtime-v4';
+const APP_VERSION = 'v3.0.0';
+const CACHE_NAME = `nexchat-${APP_VERSION}`;
+const RUNTIME_CACHE = `nexchat-runtime-${APP_VERSION}`;
 
+// Core assets to pre-cache for offline use
 const CORE_ASSETS = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './manifest.webmanifest',
+  'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+Bengali:wght@300;400;500;600;700&display=swap'
 ];
 
-// ────────── ICON GENERATION (canvas in SW context via OffscreenCanvas) ──────────
-function generateIcon(size) {
-  // Build a simple colored square SVG → but we return it as image/svg+xml
-  // This works for manifest icons
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<defs><linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-<stop offset="0" stop-color="#6366f1"/>
-<stop offset="256" stop-color="#8b5cf6"/>
-<stop offset="512" stop-color="#d946ef"/>
-</linearGradient></defs>
-<rect width="512" height="512" rx="112" fill="url(#bg)"/>
-<path d="M156 178c0-13 11-24 24-24h152c13 0 24 11 24 24v138c0 13-11 24-24 24h-100l-52 44v-44h-24c-13 0-24-11-24-24V178z" fill="white" opacity="0.95"/>
-<circle cx="220" cy="248" r="14" fill="#6366f1"/>
-<circle cx="256" cy="248" r="14" fill="#8b5cf6"/>
-<circle cx="292" cy="248" r="14" fill="#d946ef"/>
-</svg>`;
-  return new Response(svg, {
-    headers: {
-      'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'public, max-age=86400'
-    }
-  });
-}
-
+// ────────── INSTALL ──────────
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing version:', APP_VERSION);
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return Promise.allSettled(CORE_ASSETS.map(url =>
-        cache.add(url).catch(() => {})
-      ));
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('[SW] Pre-caching core assets');
+        return Promise.allSettled(CORE_ASSETS.map(url => 
+          cache.add(url).catch(err => console.warn('[SW] Failed to cache:', url, err))
+        ));
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
+// ────────── ACTIVATE ──────────
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating version:', APP_VERSION);
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(keys.filter(k => k !== CACHE_NAME && k !== RUNTIME_CACHE).map(k => caches.delete(k)));
-    }).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME && k !== RUNTIME_CACHE)
+          .map(k => {
+            console.log('[SW] Deleting old cache:', k);
+            return caches.delete(k);
+          })
+      ))
+      .then(() => self.clients.claim())
+      .then(() => {
+        return self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(client => client.postMessage({ type: 'SW_ACTIVATED', version: APP_VERSION }));
+        });
+      })
   );
 });
 
+// ────────── FETCH STRATEGIES ──────────
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
 
-  // Serve icon requests dynamically from service worker
-  if (url.pathname === '/icon.png' || url.pathname === '/icon.svg' || url.pathname === '/icon-192.png' || url.pathname === '/icon-512.png') {
-    event.respondWith(generateIcon(url.pathname.includes('512') ? 512 : 192));
-    return;
-  }
+  // Skip non-GET and chrome-extension
+  if (request.method !== 'GET') return;
+  if (url.protocol === 'chrome-extension:') return;
 
-  if (url.pathname === '/manifest.json' || url.pathname === '/manifest.webmanifest') {
+  // Supabase API: network first, no cache
+  if (url.hostname.includes('supabase.co')) {
     event.respondWith(
-      caches.match('./manifest.json')
-        .then(r => r || fetch(event.request))
-        .catch(() => generateManifest())
+      fetch(request).catch(() => new Response(JSON.stringify({ error: 'offline' }), {
+        headers: { 'Content-Type': 'application/json' }
+      }))
     );
     return;
   }
 
-  // Supabase: network only
-  if (url.hostname.includes('supabase')) {
+  // Navigation requests: network first, fallback to cache
+  if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => new Response('[]', { headers: { 'Content-Type': 'application/json' } }))
-    );
-    return;
-  }
-
-  // Navigation: network first
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then(resp => {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-          return resp;
+      fetch(request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          return response;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
     );
     return;
   }
 
-  // Static: cache first
+  // Static assets (CSS, JS, fonts, images): stale-while-revalidate
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      const fetchPromise = fetch(event.request).then(resp => {
-        if (resp.ok) {
-          const clone = resp.clone();
-          caches.open(RUNTIME_CACHE).then(c => c.put(event.request, clone));
+    caches.match(request).then(cached => {
+      const fetchPromise = fetch(request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const copy = networkResponse.clone();
+          caches.open(RUNTIME_CACHE).then(cache => cache.put(request, copy));
         }
-        return resp;
+        return networkResponse;
       }).catch(() => cached);
       return cached || fetchPromise;
     })
   );
 });
 
-function generateManifest() {
-  const origin = self.location.origin;
-  const manifest = {
-    name: 'NexChat',
-    short_name: 'NexChat',
-    description: 'Secure messenger',
-    start_url: './index.html',
-    scope: './',
-    id: './index.html',
-    display: 'standalone',
-    orientation: 'portrait',
-    background_color: '#090d16',
-    theme_color: '#6366f1',
-    lang: 'en',
-    icons: [
-      { src: origin + '/icon.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: origin + '/icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+// ────────── PUSH NOTIFICATIONS ──────────
+self.addEventListener('push', (event) => {
+  let data = { title: 'NexChat', body: 'You have a new message' };
+  try {
+    if (event.data) data = event.data.json();
+  } catch (e) {
+    if (event.data) data.body = event.data.text();
+  }
+
+  const options = {
+    body: data.body || 'New message',
+    icon: data.icon || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="%236366f1"/><path d="M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z" fill="white"/></svg>',
+    badge: data.badge || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="48" fill="%236366f1"/></svg>',
+    vibrate: [200, 100, 200],
+    tag: data.tag || 'nexchat-msg',
+    requireInteraction: false,
+    data: { url: data.url || './', dateOfArrival: Date.now() },
+    actions: [
+      { action: 'open', title: 'Open' },
+      { action: 'close', title: 'Dismiss' }
     ]
   };
-  return new Response(JSON.stringify(manifest), {
-    headers: { 'Content-Type': 'application/manifest+json' }
-  });
-}
-
-// Push notifications
-self.addEventListener('push', (event) => {
-  let data = { title: 'NexChat', body: 'New message' };
-  try { if (event.data) data = event.data.json(); } catch (e) {}
-  event.waitUntil(self.registration.showNotification(data.title || 'NexChat', {
-    body: data.body || '',
-    icon: './icon.png',
-    badge: './icon.png',
-    vibrate: [200, 100, 200],
-    data: { url: './index.html' }
-  }));
+  event.waitUntil(self.registration.showNotification(data.title || 'NexChat', options));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  if (event.action === 'close') return;
+  
+  const targetUrl = event.notification.data?.url || './';
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then(clients => {
-      for (const c of clients) {
-        if (c.url.includes(self.location.origin) && 'focus' in c) return c.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientsArr => {
+      for (const client of clientsArr) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
       }
-      return self.clients.openWindow('./index.html');
+      return self.clients.openWindow(targetUrl);
     })
   );
 });
 
+// ────────── BACKGROUND SYNC ──────────
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-messages') {
+    event.waitUntil(Promise.resolve());
+  }
+});
+
+// ────────── PERIODIC SYNC ──────────
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'check-messages') {
+    event.waitUntil(Promise.resolve());
+  }
+});
+
+// ────────── MESSAGE FROM CLIENT ──────────
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+  if (event.data?.type === 'CLEAR_CACHE') {
+    event.waitUntil(
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+    );
   }
 });
