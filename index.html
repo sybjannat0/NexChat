@@ -2,11 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>NexChat — PWA Messenger</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="logo.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.svg">
     <!-- Tailwind v4 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Supabase CDN -->
@@ -30,43 +34,26 @@
             --glass-border: rgba(255, 255, 255, 0.08);
             --bg-grad: linear-gradient(145deg, #090d16 0%, #111827 40%, #080c14 100%);
         }
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
         body {
             font-family: 'Outfit', sans-serif;
-            background: var(--bg-grad);
+            background: var(--bg-grad) !important;
+            background-color: #090d16 !important;
             color: #f1f5f9;
-            height: 100vh;
-            height: 100dvh;
-            max-height: 100dvh;
-            overflow: hidden;
-            margin: 0;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-        #main-app {
-            height: 100dvh !important;
-            max-height: 100dvh !important;
-        }
-        
-        /* Pull To Refresh Styles */
-        .ptr-indicator {
-            height: 0;
-            opacity: 0;
-            overflow: hidden;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 11px;
-            color: #818cf8;
-            font-weight: bold;
-        }
-        .ptr-indicator.active {
-            height: 40px;
-            opacity: 1;
+        #app-body {
+            background: var(--bg-grad) !important;
+            background-color: #090d16 !important;
         }
         .glass-panel {
             background: var(--glass-bg);
@@ -180,15 +167,41 @@
         @supports (height: 100dvh) {
             .h-dvh { height: 100dvh; }
         }
+        
+        /* Pull to refresh indicator */
+        .ptr-indicator {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: top 0.3s ease;
+            z-index: 9999;
+        }
+        .ptr-indicator.active {
+            top: 10px;
+        }
+        .ptr-indicator i {
+            color: #6366f1;
+            font-size: 24px;
+        }
     </style>
 </head>
 <body id="app-body" class="theme-midnight flex items-center justify-center p-0 sm:p-2 md:p-3">
+    <!-- Pull to Refresh Indicator -->
+    <div class="ptr-indicator" id="ptr-indicator">
+        <i class="fa-solid fa-arrow-rotate-down"></i>
+    </div>
 
-    <!-- Skeleton Loader -->
-    <div id="skeleton-loader" class="fixed inset-0 z-[100] bg-[#090d16] flex items-center justify-center transition-opacity duration-500">
-        <div class="flex flex-col items-center gap-4">
-            <div class="w-20 h-20 bg-indigo-500/20 rounded-3xl animate-pulse"></div>
-            <div class="h-4 w-32 bg-slate-800 rounded animate-pulse"></div>
+    <!-- Skeleton Loader with Fade In -->
+    <div id="skeleton-loader" class="fixed inset-0 z-[100] bg-gradient-to-br from-[#090d16] via-[#111827] to-[#080c14] flex items-center justify-center transition-all duration-700">
+        <div class="flex flex-col items-center gap-4 animate-slide">
+            <div class="w-20 h-20 bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 rounded-3xl animate-pulse ring-2 ring-indigo-500/30"></div>
+            <div class="h-4 w-32 bg-slate-800/80 rounded animate-pulse"></div>
         </div>
     </div>
 
@@ -260,7 +273,7 @@
     </div>
 
     <!-- MAIN INTERFACE CORE -->
-    <div id="main-app" class="flex w-full h-full h-[100dvh] max-h-[100dvh] overflow-hidden z-20">
+    <div id="main-app" class="flex w-full h-screen h-[100dvh] overflow-hidden z-20">
 
         <!-- ========== LEFT WORKSPACE: Directory, Chats & Group Setup ========== -->
         <aside id="sidebar" class="w-full sm:w-80 md:w-96 flex flex-col border-r border-white/5 flex-shrink-0 transition-all z-30 select-none bg-[#090d16]/30 min-h-0">
@@ -400,12 +413,7 @@
             <!-- (Profile panel moved to global top level for instant display) -->
 
             <!-- Direct Message Scrolling Node - scrolls only when content overflows -->
-            <div id="hub-messages" class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3 select-text relative min-h-0 scroll-messages" ontouchstart="startPullToRefresh(event)" ontouchmove="movePullToRefresh(event)" ontouchend="endPullToRefresh(event)">
-                <!-- Pull to refresh banner -->
-                <div id="ptr-indicator" class="ptr-indicator">
-                    <i class="fa-solid fa-arrows-rotate animate-spin"></i>
-                    <span>Refreshing chat...</span>
-                </div>
+            <div id="hub-messages" class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3 select-text relative min-h-0 scroll-messages">
                 <!-- Empty State - shown when no messages -->
                 <div id="conversation-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center">
                     <div class="w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-fuchsia-600/10 rounded-3xl border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-4xl mb-4 animate-pulse">
@@ -2269,54 +2277,6 @@
         }
 
         // ────────── App Settings Panel (Global) ──────────
-        // Pull to refresh tracking
-        let ptrStartY = 0;
-        let ptrCurrentY = 0;
-        let ptrActive = false;
-
-        function startPullToRefresh(e) {
-            const container = document.getElementById('hub-messages');
-            if (container && container.scrollTop === 0) {
-                ptrStartY = e.touches[0].pageY;
-                ptrActive = true;
-            }
-        }
-
-        function movePullToRefresh(e) {
-            if (!ptrActive) return;
-            const container = document.getElementById('hub-messages');
-            ptrCurrentY = e.touches[0].pageY;
-            
-            // If pulling down
-            if (ptrCurrentY > ptrStartY && container.scrollTop === 0) {
-                const pullLength = ptrCurrentY - ptrStartY;
-                if (pullLength > 60) {
-                    document.getElementById('ptr-indicator').classList.add('active');
-                }
-            } else {
-                ptrActive = false;
-            }
-        }
-
-        async function endPullToRefresh(e) {
-            if (!ptrActive) return;
-            ptrActive = false;
-            const pullLength = ptrCurrentY - ptrStartY;
-            
-            if (pullLength > 60) {
-                document.getElementById('ptr-indicator').classList.add('active');
-                try {
-                    await syncDataQueue();
-                    showToast('Refreshed!', 'info');
-                } catch(e) {}
-                setTimeout(() => {
-                    document.getElementById('ptr-indicator').classList.remove('active');
-                }, 800);
-            } else {
-                document.getElementById('ptr-indicator').classList.remove('active');
-            }
-        }
-
         function openAppSettings() {
             document.getElementById('app-settings-overlay').classList.remove('hidden');
             const panel = document.getElementById('app-settings-panel');
@@ -3006,6 +2966,55 @@
             if (am && !e.target.closest('#attach-menu') && !e.target.closest('[onclick="toggleAttachMenu()"]')) am.classList.add('hidden');
             if (ep && !e.target.closest('#emoji-picker') && !e.target.closest('[onclick="toggleEmojiPicker()"]')) ep.classList.add('hidden');
             if (dm && !e.target.closest('.glass-panel') && !dm.classList.contains('hidden')) closeDeleteModal();
+        });
+
+        // ────────── Pull to Refresh ──────────
+        let ptrStartY = 0;
+        let ptrCurrentY = 0;
+        let ptrThreshold = 100;
+        let ptrIndicator = document.getElementById('ptr-indicator');
+        let ptrRotating = false;
+
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0 || document.getElementById('hub-messages')?.scrollTop === 0) {
+                ptrStartY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (ptrStartY === 0) return;
+            ptrCurrentY = e.touches[0].clientY;
+            const diff = ptrCurrentY - ptrStartY;
+            
+            if (diff > 0 && diff < ptrThreshold * 2) {
+                e.preventDefault();
+                ptrIndicator.style.top = (diff / 3 - 60) + 'px';
+                ptrIndicator.querySelector('i').style.transform = `rotate(${diff}deg)`;
+                
+                if (diff > ptrThreshold && !ptrRotating) {
+                    ptrRotating = true;
+                    ptrIndicator.querySelector('i').classList.add('fa-spin');
+                }
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', async () => {
+            if (ptrRotating) {
+                // Trigger refresh
+                ptrIndicator.classList.add('active');
+                await syncDataQueue();
+                setTimeout(() => {
+                    ptrIndicator.classList.remove('active');
+                    ptrIndicator.style.top = '-60px';
+                    ptrIndicator.querySelector('i').classList.remove('fa-spin');
+                    ptrRotating = false;
+                }, 1000);
+            } else {
+                ptrIndicator.style.top = '-60px';
+                ptrIndicator.querySelector('i').style.transform = 'rotate(0deg)';
+            }
+            ptrStartY = 0;
+            ptrCurrentY = 0;
         });
     </script>
 </body>
