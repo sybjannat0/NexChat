@@ -25,10 +25,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="application-name" content="NexChat">
     
-    <!-- ═══════ APP ICONS (SVG-based, no external file needed) ═══════ -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%23d946ef'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z' fill='white' opacity='0.95'/><circle cx='82' cy='93' r='5' fill='%236366f1'/><circle cx='96' cy='93' r='5' fill='%238b5cf6'/><circle cx='110' cy='93' r='5' fill='%23d946ef'/></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%23d946ef'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z' fill='white' opacity='0.95'/><circle cx='82' cy='93' r='5' fill='%236366f1'/><circle cx='96' cy='93' r='5' fill='%238b5cf6'/><circle cx='110' cy='93' r='5' fill='%23d946ef'/></svg>">
-    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='50%25' stop-color='%238b5cf6'/><stop offset='100%25' stop-color='%23d946ef'/></linearGradient></defs><rect width='192' height='192' rx='42' fill='url(%23g)'/><path d='M58 67c0-5 4-9 9-9h58c5 0 9 4 9 9v52c0 5-4 9-9 9H88l-20 17v-17h-9c-5 0-9-4-9-9V67z' fill='white' opacity='0.95'/><circle cx='82' cy='93' r='5' fill='%236366f1'/><circle cx='96' cy='93' r='5' fill='%238b5cf6'/><circle cx='110' cy='93' r='5' fill='%23d946ef'/></svg>">
+    <!-- ═══════ APP ICONS ═══════ -->
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.svg">
     
     <!-- Tailwind v4 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
@@ -1812,32 +1812,26 @@
                     });
                 }
 
-                // Only re-render if something actually changed — prevents blinking
+                // Only re-render thread list when counts change — Realtime handles message view
                 if (anyChange) {
-                    // Compute a quick hash incorporating message lengths AND last status changes 
-                    // to accurately trigger UI re-renders without unneccessary full-dom wipes
                     const currentCounts = {};
-                    Object.keys(friends).forEach(k => { 
+                    Object.keys(friends).forEach(k => {
                         const msgs = friends[k].messages;
-                        currentCounts[k] = `${msgs.length}_${msgs.length ? msgs[msgs.length-1].status : '0'}`; 
+                        currentCounts[k] = `${msgs.length}_${msgs.length ? msgs[msgs.length-1].status : '0'}`;
                     });
-                    Object.keys(groups).forEach(k => { 
+                    Object.keys(groups).forEach(k => {
                         const msgs = groups[k].messages;
-                        currentCounts[k] = `${msgs.length}_${msgs.length ? msgs[msgs.length-1].status : '0'}`; 
+                        currentCounts[k] = `${msgs.length}_${msgs.length ? msgs[msgs.length-1].status : '0'}`;
                     });
                     const newHash = JSON.stringify(currentCounts);
 
                     if (newHash !== _lastMessageCounts) {
                         _lastMessageCounts = newHash;
+                        // Only update sidebar thread list — never re-render message view here
+                        // Message view is exclusively managed by Realtime subscriptions
                         renderThreadList();
+                        checkForNewIncomingMessages();
                     }
-
-                    if (activeThreadId) {
-                        renderMessages();
-                    }
-                    
-                    // Check for new incoming messages and fire notifications
-                    checkForNewIncomingMessages();
                 }
             } catch (e) {
                 console.error(e);
@@ -1913,7 +1907,11 @@
 
             inp.value = '';
             inp.style.height = 'auto';
-            renderMessages();
+            // Only append the new message to DOM without full re-render (avoids blinking)
+            appendSingleMessageToDOM(isGroup
+                ? groups[activeThreadId].messages[groups[activeThreadId].messages.length - 1]
+                : friends[activeThreadId].messages[friends[activeThreadId].messages.length - 1]
+            );
             renderThreadList();
         }
 
@@ -2366,7 +2364,7 @@
             if (!file) return;
 
             if (file.size > 5 * 1024 * 1024) {
-                showToast('Image size threshold: 5MB', 'error');
+                showToast('Image exceeds 5MB limit', 'error');
                 return;
             }
 
@@ -2374,29 +2372,51 @@
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    let w = img.width, h = img.height;
-                    const maxDim = 500;
-                    if (w > h) {
-                        if (w > maxDim) { h *= maxDim / w; w = maxDim; }
-                    } else {
-                        if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+                    try {
+                        const canvas = document.createElement('canvas');
+                        let w = img.naturalWidth || img.width;
+                        let h = img.naturalHeight || img.height;
+
+                        // Limit to 800px max dimension for quality without corruption
+                        const maxDim = 800;
+                        if (w > h) {
+                            if (w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+                        } else {
+                            if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+                        }
+
+                        // Ensure minimum 1x1 pixels
+                        w = Math.max(1, w);
+                        h = Math.max(1, h);
+
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        // White background to prevent transparency artifacts
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+
+                        // Use 0.7 quality JPEG — good balance of size vs quality without corruption
+                        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+
+                        if (!compressed || compressed === 'data:,') {
+                            throw new Error('Canvas export failed');
+                        }
+
+                        currentAttachment = {
+                            type: 'image',
+                            data: compressed,
+                            name: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+                            size: (Math.ceil(compressed.length * 0.75 / 1024)) + ' KB'
+                        };
+
+                        showAttachmentPreview('image', currentAttachment.name, currentAttachment.size);
+                    } catch (err) {
+                        console.error('Image processing failed:', err);
                     }
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
-                    const compressed = canvas.toDataURL('image/jpeg', 0.45);
-
-                    currentAttachment = {
-                        type: 'image',
-                        data: compressed,
-                        name: file.name.replace(/\.[^.]+$/, '.jpg'),
-                        size: (compressed.length * 0.75 / 1024).toFixed(1) + ' KB'
-                    };
-
-                    showAttachmentPreview('image', currentAttachment.name, currentAttachment.size);
                 };
+                img.onerror = () => console.error('Image load failed');
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
