@@ -26,8 +26,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Kalpurush Bangla Font -->
     <link rel="stylesheet" href="https://banglawebfonts.pages.dev/css/kalpurush.css">
-    <!-- NexChat Icon Generator -->
-    <script src="icon-gen.js" defer></script>
     
     <style>
         :root {
@@ -336,12 +334,15 @@
             </div>
 
             <!-- Connect by Peer ID directly -->
-            <div class="px-4 py-3 flex gap-2 border-b border-white/5 bg-[#080d16]/20">
-                <input id="connect-id-input" type="text" placeholder="Friend's Peer ID..." 
-                    class="flex-1 bg-white/5 border border-white/5 focus:border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none transition-all">
-                <button onclick="connectToFriend()" class="glass-btn px-3 py-2.5 rounded-xl font-bold text-xs text-white cursor-pointer whitespace-nowrap flex items-center gap-1">
-                    <i class="fa-solid fa-plug text-indigo-400"></i> Connect
-                </button>
+            <div class="px-4 py-3 border-b border-white/5 bg-[#080d16]/20">
+                <div class="flex gap-2">
+                    <input id="connect-id-input" type="text" placeholder="Friend's Peer ID..." 
+                        class="flex-1 bg-white/5 border border-white/5 focus:border-indigo-500/40 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 outline-none transition-all">
+                    <button onclick="connectToFriend()" class="glass-btn px-3 py-2.5 rounded-xl font-bold text-xs text-white cursor-pointer whitespace-nowrap flex items-center gap-1">
+                        <i class="fa-solid fa-plug text-indigo-400"></i> Connect
+                    </button>
+                </div>
+                <p id="connect-feedback" class="text-[10px] text-rose-400 mt-1.5 hidden font-medium"></p>
             </div>
 
             <!-- Selection tabs: Conversations & Directory -->
@@ -664,6 +665,14 @@
 
             <!-- Sign Out -->
             <div>
+                <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Install App</label>
+                <button onclick="triggerInstall()" id="install-btn" class="w-full py-3 bg-gradient-to-r from-indigo-500 to-fuchsia-600 hover:from-indigo-400 hover:to-fuchsia-500 text-white border border-indigo-500/30 rounded-xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-download"></i> Install NexChat
+                </button>
+                <p id="install-hint" class="text-[10px] text-slate-500 mt-2 text-center">Add to Home Screen for the best native experience</p>
+            </div>
+
+            <div>
                 <label class="text-xs font-bold text-slate-300 uppercase tracking-widest block mb-3">Account</label>
                 <button onclick="signOut()" class="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-right-from-bracket"></i> Sign Out
@@ -811,69 +820,190 @@
         let realtimeChannels = [];
         let backgroundSyncInterval = null;
 
-        // Window Startup Integration
-        window.onload = async () => {
-            // Register Service Worker and automatically trigger update on reload
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js').then((reg) => {
-                    reg.addEventListener('updatefound', () => {
-                        const newWorker = reg.installing;
-                        if (newWorker) {
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Worker was updated, reload to apply new version
-                                    window.location.reload();
-                                }
-                            });
-                        }
-                    });
-                }).catch(console.error);
+        // ────────── PWA Install Prompt Capture ──────────
+        let deferredInstallPrompt = null;
 
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    window.location.reload();
-                });
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            console.log('[PWA] Install prompt captured');
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredInstallPrompt = null;
+            const installBtn = document.getElementById('install-btn');
+            if (installBtn) {
+                installBtn.innerHTML = '<i class="fa-solid fa-check"></i> App Installed';
+                installBtn.className = installBtn.className.replace('from-indigo-500 to-fuchsia-600', 'from-emerald-600 to-emerald-700');
+            }
+        });
+
+        // Global install function
+        window.triggerInstall = async function() {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                const { outcome } = await deferredInstallPrompt.userChoice;
+                console.log('[PWA] Install outcome:', outcome);
+                deferredInstallPrompt = null;
+                return outcome === 'accepted';
+            }
+            // Fallback for iOS / already installed
+            return false;
+        };
+
+        // Check if running as installed PWA
+        function isInstalled() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+
+        // ────────── Main Boot Sequence ──────────
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 1. Register Service Worker
+            if ('serviceWorker' in navigator) {
+                try {
+                    const reg = await navigator.serviceWorker.register('./sw.js');
+                    console.log('[PWA] SW registered');
+
+                    // Auto-update: when new SW found, reload
+                    reg.addEventListener('updatefound', () => {
+                        const sw = reg.installing;
+                        if (!sw) return;
+                        sw.addEventListener('statechange', () => {
+                            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('[PWA] New version found, reloading...');
+                                window.location.reload();
+                            }
+                        });
+                    });
+                } catch (err) {
+                    console.warn('[PWA] SW registration error:', err);
+                }
             }
 
-            // Setup Supabase first
+            // 2. Hide install button if already installed
+            if (isInstalled()) {
+                const installBtn = document.getElementById('install-btn');
+                if (installBtn) {
+                    installBtn.innerHTML = '<i class="fa-solid fa-check"></i> App Installed';
+                    installBtn.className = 'w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold cursor-default transition flex items-center justify-center gap-2';
+                }
+            }
+
+            // 3. Init Supabase
             _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+            // 4. Load profile and data
             await loadUserProfile();
-            
-            // Load unread state
             loadUnreadState();
-            
-            // Initialize known message IDs
+
             Object.keys(friends).forEach(fid => {
                 friends[fid].messages.forEach(m => _lastKnownMsgIds.add(m.id));
             });
             Object.keys(groups).forEach(gid => {
                 groups[gid].messages.forEach(m => _lastKnownMsgIds.add(m.id));
             });
-            
-            // Sync notification button state
+
+            // 5. Apply saved preferences
+            const savedTheme = localStorage.getItem('nexchat_theme');
+            if (savedTheme) document.getElementById('app-body').className = savedTheme;
+
+            const savedFont = localStorage.getItem('nexchat_font') || 'outfit';
+            const body = document.getElementById('app-body');
+            body.classList.remove('font-outfit', 'font-kalpurush', 'font-noto-bengali');
+            if (savedFont !== 'outfit') body.classList.add('font-' + savedFont);
+
+            const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
+            const hub = document.getElementById('chat-hub');
+            if (hub) hub.classList.add('text-size-' + savedSize);
+            applySizeButtonStates(savedSize);
+
+            // 6. Sync UI states
             syncNotificationButtonState();
-            
-            // Fade out skeleton
-            document.getElementById('skeleton-loader').classList.add('opacity-0');
-            setTimeout(() => document.getElementById('skeleton-loader').classList.add('hidden'), 500);
 
-            // Setup real-time dynamic sizing for textarea inputs
+            // 7. Fade out skeleton
+            const skeleton = document.getElementById('skeleton-loader');
+            if (skeleton) {
+                skeleton.style.transition = 'opacity 0.6s ease, visibility 0.6s ease';
+                skeleton.style.opacity = '0';
+                setTimeout(() => { skeleton.style.display = 'none'; }, 600);
+            }
+
+            // 8. Textarea auto-resize
             const msgInput = document.getElementById('msg-input');
-            msgInput.addEventListener('input', function() {
-                this.style.height = 'auto';
-                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-            });
+            if (msgInput) {
+                msgInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+                });
+            }
 
-            // Light fallback sync only; primary updates come from Supabase Realtime
-            pollingInterval = setInterval(() => {
-                syncDataQueue();
-            }, 20000);
+            // 9. Background sync
+            pollingInterval = setInterval(() => { syncDataQueue(); }, 15000);
 
-            // Background fallback for edit/delete consistency
-            backgroundSyncInterval = setInterval(() => {
-                if (myProfile.permanentPeerId) syncDataQueue();
-            }, 30000);
-        };
+            // 10. Pull to Refresh
+            setupPullToRefresh();
+
+            // 11. Set viewport height variable for mobile
+            function setVH() {
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            }
+            setVH();
+            window.addEventListener('resize', setVH);
+            window.addEventListener('orientationchange', () => setTimeout(setVH, 100));
+
+            // 12. Listen for realtime presence/heartbeat
+            startPresenceHeartbeat();
+        });
+
+        // ────────── Pull to Refresh ──────────
+        function setupPullToRefresh() {
+            let ptrStartY = 0;
+            let ptrDistance = 0;
+            const ptrEl = document.getElementById('ptr-indicator');
+            if (!ptrEl) return;
+
+            document.addEventListener('touchstart', (e) => {
+                const messagesEl = document.getElementById('hub-messages');
+                const atTop = !messagesEl || messagesEl.scrollTop <= 0;
+                if (window.scrollY <= 0 && atTop && activeThreadId) {
+                    ptrStartY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (ptrStartY === 0) return;
+                ptrDistance = e.touches[0].clientY - ptrStartY;
+                if (ptrDistance > 0 && ptrDistance < 180) {
+                    if (ptrEl) {
+                        ptrEl.style.top = Math.min(ptrDistance * 0.4, 50) + 'px';
+                        ptrEl.style.transform = `translateX(-50%) rotate(${ptrDistance * 3}deg)`;
+                        ptrEl.style.opacity = Math.min(ptrDistance / 80, 1);
+                    }
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchend', async () => {
+                if (ptrDistance > 80) {
+                    if (ptrEl) {
+                        ptrEl.classList.add('active');
+                        ptrEl.style.top = '30px';
+                        ptrEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:#6366f1;font-size:22px"></i>';
+                    }
+                    await syncDataQueue();
+                    await new Promise(r => setTimeout(r, 600));
+                }
+                if (ptrEl) {
+                    ptrEl.classList.remove('active');
+                    ptrEl.style.top = '-60px';
+                    ptrEl.style.transform = 'translateX(-50%)';
+                    ptrEl.style.opacity = '0';
+                    ptrEl.innerHTML = '<i class="fa-solid fa-arrow-rotate-down"></i>';
+                }
+                ptrStartY = 0;
+                ptrDistance = 0;
+            }, { passive: true });
+        }
 
         // ────────── Profile Registration & Supabase State ──────────
         async function loadUserProfile() {
@@ -1184,44 +1314,46 @@
         // ────────── Connections and Profiles Handlers ──────────
         async function connectToFriend() {
             const inp = document.getElementById('connect-id-input');
+            const fb = document.getElementById('connect-feedback');
             const tid = inp.value.trim();
 
+            if (fb) {
+                fb.classList.add('hidden');
+                fb.textContent = '';
+            }
+
             if (!tid) {
-                showToast('Friend Peer ID signature required', 'error');
+                if (fb) { fb.classList.remove('hidden'); fb.textContent = 'Please enter an email/ID to connect.'; }
                 return;
             }
             if (tid === myProfile.permanentPeerId) {
-                showToast('You cannot connect to yourself', 'error');
+                if (fb) { fb.classList.remove('hidden'); fb.textContent = 'You cannot connect to yourself.'; }
                 return;
             }
             if (friends[tid]) {
-                showToast('Thread already active', 'info');
                 openThread(tid);
                 return;
             }
 
-            inp.value = '';
-            showToast('Loading profile from Supabase directory...', 'info');
-
             // Find identity on Supabase
             try {
-                const { data } = await _supabase.from('profiles').select('*').eq('peer_id', tid).single();
-                if (data) {
-                    friends[tid] = {
-                        name: data.name,
-                        avatar: data.avatar_url,
-                        online: true,
-                        messages: []
-                    };
-                    showToast(`Secured connection to ${data.name}`, 'info');
-                } else {
-                    friends[tid] = {
-                        name: `Dynamic Mesh ${tid.slice(4, 9)}`,
-                        avatar: '',
-                        online: true,
-                        messages: []
-                    };
+                const { data, error } = await _supabase.from('profiles').select('*').eq('peer_id', tid).maybeSingle();
+                if (error || !data) {
+                    if (fb) {
+                        fb.classList.remove('hidden');
+                        fb.textContent = 'User not found. Please verify the ID.';
+                    }
+                    return;
                 }
+
+                friends[tid] = {
+                    name: data.name,
+                    avatar: data.avatar_url,
+                    online: true,
+                    messages: []
+                };
+
+                inp.value = '';
 
                 // Register handshake connection directly via PeerJS for direct sync fallback
                 try {
@@ -1235,6 +1367,10 @@
                 openThread(tid);
             } catch(e) {
                 console.error(e);
+                if (fb) {
+                    fb.classList.remove('hidden');
+                    fb.textContent = 'Connection error. Please try again.';
+                }
             }
         }
 
@@ -2985,54 +3121,6 @@
             if (dm && !e.target.closest('.glass-panel') && !dm.classList.contains('hidden')) closeDeleteModal();
         });
 
-        // ────────── Pull to Refresh ──────────
-        let ptrStartY = 0;
-        let ptrCurrentY = 0;
-        let ptrThreshold = 100;
-        let ptrIndicator = document.getElementById('ptr-indicator');
-        let ptrRotating = false;
-
-        document.addEventListener('touchstart', (e) => {
-            if (window.scrollY === 0 || document.getElementById('hub-messages')?.scrollTop === 0) {
-                ptrStartY = e.touches[0].clientY;
-            }
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            if (ptrStartY === 0) return;
-            ptrCurrentY = e.touches[0].clientY;
-            const diff = ptrCurrentY - ptrStartY;
-            
-            if (diff > 0 && diff < ptrThreshold * 2) {
-                e.preventDefault();
-                ptrIndicator.style.top = (diff / 3 - 60) + 'px';
-                ptrIndicator.querySelector('i').style.transform = `rotate(${diff}deg)`;
-                
-                if (diff > ptrThreshold && !ptrRotating) {
-                    ptrRotating = true;
-                    ptrIndicator.querySelector('i').classList.add('fa-spin');
-                }
-            }
-        }, { passive: false });
-
-        document.addEventListener('touchend', async () => {
-            if (ptrRotating) {
-                // Trigger refresh
-                ptrIndicator.classList.add('active');
-                await syncDataQueue();
-                setTimeout(() => {
-                    ptrIndicator.classList.remove('active');
-                    ptrIndicator.style.top = '-60px';
-                    ptrIndicator.querySelector('i').classList.remove('fa-spin');
-                    ptrRotating = false;
-                }, 1000);
-            } else {
-                ptrIndicator.style.top = '-60px';
-                ptrIndicator.querySelector('i').style.transform = 'rotate(0deg)';
-            }
-            ptrStartY = 0;
-            ptrCurrentY = 0;
-        });
     </script>
 </body>
 </html>
