@@ -1,7 +1,7 @@
 {
-  "name": "NexChat — Secure Messenger",
+  "name": "NexChat",
   "short_name": "NexChat",
-  "description": "End-to-end encrypted peer-to-peer messenger with real-time sync, group chats, and photo sharing.",
+  "description": "Secure messenger with real-time cloud sync",
   "start_url": "./index.html",
   "scope": "./",
   "id": "./index.html",
@@ -10,28 +10,19 @@
   "background_color": "#090d16",
   "theme_color": "#6366f1",
   "lang": "en",
-  "categories": ["communication", "social"],
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Open Chats",
-      "short_name": "Chats",
-      "url": "./index.html",
-      "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
