@@ -36,8 +36,37 @@
             color: #f1f5f9;
             height: 100vh;
             height: 100dvh;
+            max-height: 100dvh;
             overflow: hidden;
             margin: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        #main-app {
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+        }
+        
+        /* Pull To Refresh Styles */
+        .ptr-indicator {
+            height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #818cf8;
+            font-weight: bold;
+        }
+        .ptr-indicator.active {
+            height: 40px;
+            opacity: 1;
         }
         .glass-panel {
             background: var(--glass-bg);
@@ -231,7 +260,7 @@
     </div>
 
     <!-- MAIN INTERFACE CORE -->
-    <div id="main-app" class="flex w-full h-screen h-[100dvh] overflow-hidden z-20">
+    <div id="main-app" class="flex w-full h-full h-[100dvh] max-h-[100dvh] overflow-hidden z-20">
 
         <!-- ========== LEFT WORKSPACE: Directory, Chats & Group Setup ========== -->
         <aside id="sidebar" class="w-full sm:w-80 md:w-96 flex flex-col border-r border-white/5 flex-shrink-0 transition-all z-30 select-none bg-[#090d16]/30 min-h-0">
@@ -371,7 +400,12 @@
             <!-- (Profile panel moved to global top level for instant display) -->
 
             <!-- Direct Message Scrolling Node - scrolls only when content overflows -->
-            <div id="hub-messages" class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3 select-text relative min-h-0 scroll-messages">
+            <div id="hub-messages" class="flex-1 overflow-y-auto p-4 sm:p-5 flex flex-col gap-3 select-text relative min-h-0 scroll-messages" ontouchstart="startPullToRefresh(event)" ontouchmove="movePullToRefresh(event)" ontouchend="endPullToRefresh(event)">
+                <!-- Pull to refresh banner -->
+                <div id="ptr-indicator" class="ptr-indicator">
+                    <i class="fa-solid fa-arrows-rotate animate-spin"></i>
+                    <span>Refreshing chat...</span>
+                </div>
                 <!-- Empty State - shown when no messages -->
                 <div id="conversation-empty" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center">
                     <div class="w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-fuchsia-600/10 rounded-3xl border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-4xl mb-4 animate-pulse">
@@ -2235,6 +2269,54 @@
         }
 
         // ────────── App Settings Panel (Global) ──────────
+        // Pull to refresh tracking
+        let ptrStartY = 0;
+        let ptrCurrentY = 0;
+        let ptrActive = false;
+
+        function startPullToRefresh(e) {
+            const container = document.getElementById('hub-messages');
+            if (container && container.scrollTop === 0) {
+                ptrStartY = e.touches[0].pageY;
+                ptrActive = true;
+            }
+        }
+
+        function movePullToRefresh(e) {
+            if (!ptrActive) return;
+            const container = document.getElementById('hub-messages');
+            ptrCurrentY = e.touches[0].pageY;
+            
+            // If pulling down
+            if (ptrCurrentY > ptrStartY && container.scrollTop === 0) {
+                const pullLength = ptrCurrentY - ptrStartY;
+                if (pullLength > 60) {
+                    document.getElementById('ptr-indicator').classList.add('active');
+                }
+            } else {
+                ptrActive = false;
+            }
+        }
+
+        async function endPullToRefresh(e) {
+            if (!ptrActive) return;
+            ptrActive = false;
+            const pullLength = ptrCurrentY - ptrStartY;
+            
+            if (pullLength > 60) {
+                document.getElementById('ptr-indicator').classList.add('active');
+                try {
+                    await syncDataQueue();
+                    showToast('Refreshed!', 'info');
+                } catch(e) {}
+                setTimeout(() => {
+                    document.getElementById('ptr-indicator').classList.remove('active');
+                }, 800);
+            } else {
+                document.getElementById('ptr-indicator').classList.remove('active');
+            }
+        }
+
         function openAppSettings() {
             document.getElementById('app-settings-overlay').classList.remove('hidden');
             const panel = document.getElementById('app-settings-panel');
