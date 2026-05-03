@@ -321,13 +321,31 @@
     </style>
 </head>
 <body id="app-body" class="theme-midnight">
+    <!-- Instant preference restore + skeleton control to prevent flash/blink -->
+    <script>
+    (function(){
+        try {
+            var b = document.getElementById('app-body');
+            var t = localStorage.getItem('nexchat_theme');
+            if (t) { b.className = b.className.replace(/theme-\S+/g, '').trim(); b.classList.add(t); }
+            var f = localStorage.getItem('nexchat_font');
+            if (f && f !== 'outfit') b.classList.add('font-' + f);
+            // Only show skeleton on very first visit (no profile stored yet)
+            var hasProfile = localStorage.getItem('nexchat_user_profile');
+            var skel = document.getElementById('skeleton-loader');
+            if (!hasProfile && skel) {
+                skel.style.display = 'flex';
+            }
+        } catch(e) {}
+    })();
+    </script>
     <!-- Pull to Refresh Indicator -->
     <div class="ptr-indicator" id="ptr-indicator">
         <i class="fa-solid fa-arrow-rotate-down"></i>
     </div>
 
     <!-- Skeleton Loader with Fade In -->
-    <div id="skeleton-loader" class="fixed inset-0 z-[100] bg-gradient-to-br from-[#090d16] via-[#111827] to-[#080c14] flex items-center justify-center transition-all duration-700">
+    <div id="skeleton-loader" class="fixed inset-0 z-[100] bg-gradient-to-br from-[#090d16] via-[#111827] to-[#080c14] flex items-center justify-center transition-all duration-700" style="display:none">
         <div class="flex flex-col items-center gap-4 animate-slide">
             <div class="w-20 h-20 bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/20 rounded-3xl animate-pulse ring-2 ring-indigo-500/30"></div>
             <div class="h-4 w-32 bg-slate-800/80 rounded animate-pulse"></div>
@@ -1190,9 +1208,12 @@
             // Sync notification button state
             syncNotificationButtonState();
             
-            // Fade out skeleton
-            document.getElementById('skeleton-loader').classList.add('opacity-0');
-            setTimeout(() => document.getElementById('skeleton-loader').classList.add('hidden'), 500);
+            // Fade out skeleton if visible
+            const skeleton = document.getElementById('skeleton-loader');
+            if (skeleton && skeleton.style.display !== 'none') {
+                skeleton.style.opacity = '0';
+                setTimeout(() => { skeleton.style.display = 'none'; }, 700);
+            }
 
             // Setup real-time dynamic sizing for textarea inputs
             const msgInput = document.getElementById('msg-input');
@@ -1221,8 +1242,8 @@
                     document.getElementById('signup-overlay').classList.add('hidden');
                     applyProfileToUI();
                     initPeerJS();
-                    const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
-                    setTextSize(savedSize);
+                    // Restore all saved preferences
+                    restoreSavedPreferences();
                     await updatePresenceStatus(true);
                     await syncDataQueue();
                     setupRealtimeSubscriptions();
@@ -1233,6 +1254,37 @@
             } catch (e) {
                 console.error(e);
                 document.getElementById('signup-overlay').classList.remove('hidden');
+            }
+        }
+
+        function restoreSavedPreferences() {
+            // Text size
+            const savedSize = localStorage.getItem('nexchat_textsize') || 'normal';
+            const hub = document.getElementById('chat-hub');
+            if (hub) {
+                hub.classList.remove('text-size-small', 'text-size-normal', 'text-size-large', 'text-size-xl');
+                hub.classList.add('text-size-' + savedSize);
+            }
+
+            // Font
+            const savedFont = localStorage.getItem('nexchat_font') || 'outfit';
+            const body = document.getElementById('app-body');
+            if (body) {
+                body.classList.remove('font-outfit', 'font-kalpurush', 'font-noto-bengali');
+                if (savedFont !== 'outfit') {
+                    body.classList.add('font-' + savedFont);
+                }
+            }
+
+            // Theme
+            const savedTheme = localStorage.getItem('nexchat_theme');
+            if (savedTheme && body) {
+                body.className = body.className.replace(/theme-\S+/g, '').trim();
+                body.classList.add(savedTheme);
+                // Re-add font class if needed
+                if (savedFont !== 'outfit') {
+                    body.classList.add('font-' + savedFont);
+                }
             }
         }
 
